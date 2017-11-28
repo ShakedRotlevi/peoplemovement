@@ -15,9 +15,12 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,11 +49,13 @@ import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
 
 import org.json.JSONObject;
 
@@ -183,11 +188,73 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
         Log.d("long and lat", msg);
 
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        DatabaseReference myRef = database.getReference("newlocation");
+        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+
+
+        Map<String, LocationObject> locations = new HashMap<>();
+        LocationObject location1 = new LocationObject(38.8977,-37.0365);
+        LocationObject location2 = new LocationObject(48.8977,-47.0365);
+        LocationObject location3 = new LocationObject(58.8977,-57.0365);
+        LocationObject location4 = new LocationObject(68.8977,-67.0365);
+
+
+       locations.put("location1", location1);
+        locations.put("location2", location2);
+        locations.put("location3", location3);
+        locations.put("location4", location4);
+
+      //          ("June 23, 1912", "Alan Turing"));
+       // users.put("gracehop", new User("December 9, 1906", "Grace Hopper"));
+
+        DatabaseReference myRef = database.getReference("actual location");
+        DatabaseReference refMap = database.getReference("locations map");
+
+       // DatabaseReference myRef2 = database.getReference("location2");
+        //DatabaseReference myRef3 = database.getReference("location3");
 
         myRef.setValue("Lat:" + location.getLatitude() + ", Lon: "+ location.getLongitude());
+        refMap.setValue(locations);
 
+
+
+        refMap.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String prevChildKey) {
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String prevChildKey) {
+                String loc = dataSnapshot.getKey();
+                String welcome = dataSnapshot.getValue(LocationObject.class).getWelcome();
+                //String welcome = dataSnapshot.
+                Log.d("THIS IS WHAT WELCOME IS", "Welcome is " + welcome);
+                Toast toast= Toast.makeText(MapsActivity.this, welcome, Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                View view = toast.getView();
+                view.setBackgroundColor(Color.BLUE);
+                LinearLayout toastLayout = (LinearLayout) toast.getView();
+                TextView welcomeText = (TextView) toastLayout.getChildAt(0);
+                welcomeText.setTextSize(30);
+                toast.show();
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String prevChildKey) {}
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {}
+        });
+
+
+
+
+
+       // myRef2.setValue("Lat: 48.8977" + ", Lon: -47.0365");
+        //myRef3.setValue("Lat: 58.8977" + ", Lon: -57.0365");
         myRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -203,6 +270,21 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 Log.w("NEW VAL", "Failed to read value.", error.toException());
             }
         });
+
+      /*  // Attach a listener to read the data at our posts reference
+        refMap.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+               LocationObject locationChanged = dataSnapshot.getValue(LocationObject.class);
+                System.out.println(locationChanged.welcome);
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                System.out.println("The read failed: " + databaseError.getCode());
+            }
+        });*/
+
         if(marker!=null){
             marker.remove();
         }
@@ -233,12 +315,10 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         int alpha = 127; // 50% transparent
         int value = 0;
         //Color myColour = new Color(255, value, value, alpha);
-        Color newColor = new Color();
-        newColor.argb(10,255,0,0);
         Polygon polygon = map.addPolygon(new PolygonOptions()
                 .add(new LatLng(38.899584, -77.048130), new LatLng(38.899584, -77.046697), new LatLng(38.898816, -77.046681), new LatLng(38.898346, -77.047299))
-                .strokeColor(newColor.hashCode())
-                .fillColor(newColor.hashCode()));
+                .strokeColor(android.R.color.black)
+                .fillColor(Color.argb(125,255,0,0)));
 
         // You can now create a LatLng Object for use with maps
         //double lat = location.getLatitude();

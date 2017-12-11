@@ -2,6 +2,7 @@ package com.example.shakedrotlevi.peoplemovementapp;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 //import android.graphics.Color;
 import android.graphics.Color;
@@ -10,6 +11,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Looper;
 import android.support.annotation.NonNull;
+import android.support.design.widget.BottomNavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
@@ -17,6 +19,7 @@ import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -73,31 +76,12 @@ import java.text.DateFormat;
 import java.util.Date;
 import java.util.Map;
 
-//import com.google.android.gms.maps.CameraUpdateFactory;
-//import com.google.android.gms.maps.GoogleMap;
-//import com.google.android.gms.maps.GoogleMap;
-//import com.google.android.gms.maps.OnMapReadyCallback;
-/*import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;*/
+
 
 //public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.OnConnectionFailedListener, GoogleApiClient.ConnectionCallbacks, LocationListener {
 public class MapsActivity extends Activity implements OnMapReadyCallback {
 
     private FusedLocationProviderClient mFusedLocationClient;
-    private Location mLastLocation;
-    private Location mCurrentLocation;
-    private String mAddressOutput;
-    private TextView mLocationAddressTextView;
-    private TextView mLatitudeTextView;
-    private TextView mLongitudeTextView;
-    private String mLatitudeLabel;
-    private String mLongitudeLabel;
-    private LocationCallback mLocationCallback;
-    private String mLastUpdateTime;
 
     private LocationRequest mLocationRequest;
     private GoogleMap map;
@@ -118,16 +102,32 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 .findFragmentById(R.id.map);
 
         mapFragment.getMapAsync(this);
+        BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
+        navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
       //  startLocationUpdates();
     }
+    private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
+            = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
+        @Override
+        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+            switch (item.getItemId()) {
+                case R.id.navigation_home:
+                    startActivity(new Intent(MapsActivity.this, MainActivity.class));
+                    return true;
+                case R.id.navigation_map:
+                    Log.d("myTag", "Clicked Map");
+                    return true;
+                case R.id.navigation_create:
+                    startActivity(new Intent(MapsActivity.this, CreateGroupActivity.class));
+                    return true;
+            }
+            return false;
+        }
+    };
 
     @Override
     public void onMapReady(GoogleMap mapReady) {
-
-      /*  map = mapReady;
-
-        setUpMap();*/
         startLocationUpdates( mapReady);
 
     }
@@ -135,10 +135,6 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
     public void setUpMap(){
 
         map.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-        //map.setMyLocationEnabled(true);
-       // map.setTrafficEnabled(true);
-        //map.setIndoorEnabled(true);
-        //map.setBuildingsEnabled(true);
         map.getUiSettings().setZoomControlsEnabled(true);
     }
 
@@ -151,12 +147,10 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         mLocationRequest.setInterval(UPDATE_INTERVAL);
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
 
-        Log.d("myTag", "IN START LOCATION UPDATES");
         // Create LocationSettingsRequest object using location request
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
         builder.addLocationRequest(mLocationRequest);
         LocationSettingsRequest locationSettingsRequest = builder.build();
-        Log.d("myTag", "AFTER SETTING REQUEST");
         // Check whether location settings are satisfied
         // https://developers.google.com/android/reference/com/google/android/gms/location/SettingsClient
         SettingsClient settingsClient = LocationServices.getSettingsClient(this);
@@ -168,12 +162,10 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
             return;
         }
-        Log.d("myTag", "BEFORE REQUEST UPDATES");
         LocationServices.getFusedLocationProviderClient(this).requestLocationUpdates(mLocationRequest, new LocationCallback() {
                     @Override
                     public void onLocationResult(LocationResult locationResult) {
                         // do work here
-                        Log.d("myTag", "BEFORE RESULT");
                         onLocationChanged(locationResult.getLastLocation(),mapReady);
                     }
                 },
@@ -181,7 +173,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
     }
     public void onLocationChanged(Location location, GoogleMap mapReady) {
         // New location has now been determined
-        Log.d("myTag", "IN LOCATION CHANGED");
+        Log.d("myTag", "LOCATION CHANGED");
         String msg = "Updated Location: " +
                 Double.toString(location.getLatitude()) + "," +
                 Double.toString(location.getLongitude());
@@ -192,19 +184,26 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
 
         Map<String, LocationObject> locations = new HashMap<>();
-        LocationObject location1 = new LocationObject(38.8977,-37.0365);
-        LocationObject location2 = new LocationObject(48.8977,-47.0365);
-        LocationObject location3 = new LocationObject(58.8977,-57.0365);
-        LocationObject location4 = new LocationObject(68.8977,-67.0365);
+        LocationObject location1;// = new LocationObject(38.8977,-37.0365);
 
+        double lat=38.900742;   //min y (max y is 38.900765)
+        double lon = -77.049014;    //max x (min x is -77.049379)
+        /* crowd in whole foods area
+        difference: .000365 in x lon
+        difference: .000023 in y lat
+        */
+        for(int i =0;i<100;i++){
+           lat = lat + 0.00000023;
+           lon = lon + 0.00000356;
+            location1= new LocationObject(lat,lon);
+            locations.put("location"+ i, location1);
+        }
 
-       locations.put("location1", location1);
-        locations.put("location2", location2);
-        locations.put("location3", location3);
-        locations.put("location4", location4);
+       //locations.put("location1", location1);
+        //locations.put("location2", location2);
+        //locations.put("location3", location3);
+        //locations.put("location4", location4);
 
-      //          ("June 23, 1912", "Alan Turing"));
-       // users.put("gracehop", new User("December 9, 1906", "Grace Hopper"));
 
         DatabaseReference myRef = database.getReference("actual location");
         DatabaseReference refMap = database.getReference("locations map");

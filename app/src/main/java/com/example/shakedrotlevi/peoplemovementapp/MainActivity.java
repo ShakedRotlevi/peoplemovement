@@ -43,6 +43,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 case R.id.navigation_notifications:
                     mTextMessage.setText(R.string.title_notifications);
                     return true;
+                case R.id.navigation_create:
+                    startActivity(new Intent(MainActivity.this, CreateGroupActivity.class));
+                    return true;
             }
             return false;
         }

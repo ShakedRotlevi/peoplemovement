@@ -46,6 +46,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 case R.id.navigation_create:
                     startActivity(new Intent(MainActivity.this, CreateGroupActivity.class));
                     return true;
+                case R.id.navigation_join:
+                    startActivity(new Intent(MainActivity.this, SearchActivity.class));
+                    return true;
             }
             return false;
         }

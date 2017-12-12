@@ -42,6 +42,7 @@ public class CreateGroupActivity extends AppCompatActivity{
             switch (item.getItemId()) {
                 case R.id.navigation_home:
                     mTextMessage.setText(R.string.title_home);
+                    startActivity(new Intent(CreateGroupActivity.this, MainActivity.class));
                     return true;
                 case R.id.navigation_map:
                     Log.d("myTag", "Clicked Map");
@@ -49,6 +50,9 @@ public class CreateGroupActivity extends AppCompatActivity{
                     return true;
                 case R.id.navigation_notifications:
                     mTextMessage.setText(R.string.title_notifications);
+                    return true;
+                case R.id.navigation_join:
+                    startActivity(new Intent(CreateGroupActivity.this, SearchActivity.class));
                     return true;
             }
             return false;

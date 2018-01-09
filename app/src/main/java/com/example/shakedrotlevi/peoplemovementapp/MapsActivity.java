@@ -50,6 +50,12 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+
+import com.google.maps.android.PolyUtil;
+
+
+
+
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.ChildEventListener;
@@ -70,11 +76,13 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.Map;
+
 
 
 
@@ -89,7 +97,9 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
     ArrayList markerPoints= new ArrayList();
     LatLng currentLatLng;
     LatLng dest;
-
+    int lineOptionsSize = 0;
+    double pointLat, pointLon;
+    ArrayList<LatLng> avoid = new ArrayList<LatLng>();
 
     private long UPDATE_INTERVAL = 10 * 1000;  /* 10 secs */
     private long FASTEST_INTERVAL = 2000; /* 2 sec */
@@ -199,19 +209,12 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             locations.put("location"+ i, location1);
         }
 
-       //locations.put("location1", location1);
-        //locations.put("location2", location2);
-        //locations.put("location3", location3);
-        //locations.put("location4", location4);
 
-
-        DatabaseReference myRef = database.getReference("actual location");
+      //  DatabaseReference myRef = database.getReference("actual location");
         DatabaseReference refMap = database.getReference("locations map");
+        DatabaseReference clusterArray = database.getReference("clusters").child("array");
 
-       // DatabaseReference myRef2 = database.getReference("location2");
-        //DatabaseReference myRef3 = database.getReference("location3");
-
-        myRef.setValue("Lat:" + location.getLatitude() + ", Lon: "+ location.getLongitude());
+       // myRef.setValue("Lat:" + location.getLatitude() + ", Lon: "+ location.getLongitude());
         refMap.setValue(locations);
 
 
@@ -223,7 +226,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String prevChildKey) {
-                String loc = dataSnapshot.getKey();
+               /* String loc = dataSnapshot.getKey();
                 String welcome = dataSnapshot.getValue(LocationObject.class).getWelcome();
                 //String welcome = dataSnapshot.
                 Log.d("THIS IS WHAT WELCOME IS", "Welcome is " + welcome);
@@ -234,7 +237,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 LinearLayout toastLayout = (LinearLayout) toast.getView();
                 TextView welcomeText = (TextView) toastLayout.getChildAt(0);
                 welcomeText.setTextSize(30);
-                toast.show();
+                toast.show();*/
             }
 
             @Override
@@ -249,12 +252,57 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         });
 
 
+        clusterArray.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String prevChildKey) {
+                //Double lat = dataSnapshot.getValue(Double.class);
+              /*  Iterable <Double> cluster = new Iterable<Double>() {
+                    @NonNull
+                    @Override
+                    public Iterator<Double> iterator() {
+                        return null;
+                    }
+                }*/
+                ArrayList<Double> arr = (ArrayList<Double> ) dataSnapshot.getValue();
+             //   Iterable cluster = dataSnapshot.getChildren();
+              //  Iterator iter = cluster.iterator();
+              //  Double lat = (Double) iter.next();
+               // Double lon = (Double) iter.next();
+                Double lat = arr.get(0);
+                Double lon = arr.get(1);
+                LatLng cluster = new LatLng(arr.get(0), arr.get(1));
+                avoid.add(cluster);
+                Log.d("THIS IS CLUSTER:", "LAT is " + lat + "LON IS "+ lon);
+            }
 
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String prevChildKey) {
+               /* String loc = dataSnapshot.getKey();
+                String welcome = dataSnapshot.getValue(LocationObject.class).getWelcome();
+                //String welcome = dataSnapshot.
+                Log.d("THIS IS WHAT WELCOME IS", "Welcome is " + welcome);
+                Toast toast= Toast.makeText(MapsActivity.this, welcome, Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                View view = toast.getView();
+                view.setBackgroundColor(Color.BLUE);
+                LinearLayout toastLayout = (LinearLayout) toast.getView();
+                TextView welcomeText = (TextView) toastLayout.getChildAt(0);
+                welcomeText.setTextSize(30);
+                toast.show();*/
+            }
 
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+            }
 
-       // myRef2.setValue("Lat: 48.8977" + ", Lon: -47.0365");
-        //myRef3.setValue("Lat: 58.8977" + ", Lon: -57.0365");
-        myRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String prevChildKey) {}
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {}
+        });
+
+       /* myRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 // This method is called once with the initial value and again
@@ -269,21 +317,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 Log.w("NEW VAL", "Failed to read value.", error.toException());
             }
         });
-
-      /*  // Attach a listener to read the data at our posts reference
-        refMap.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-               LocationObject locationChanged = dataSnapshot.getValue(LocationObject.class);
-                System.out.println(locationChanged.welcome);
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                System.out.println("The read failed: " + databaseError.getCode());
-            }
-        });*/
-
+*/
         if(marker!=null){
             marker.remove();
         }
@@ -292,25 +326,14 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         marker = mapReady.addMarker(new MarkerOptions().position(currentLatLng)
                 .title("Marker in current Location"));
         markerPoints.add(currentLatLng);
-        dest = new LatLng(38.8977, -77.0365);
+        dest = new LatLng(38.901118, -77.048847);
         markerPoints.add(dest);
         mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
-        if (markerPoints.size() >= 2) {
-            LatLng origin = (LatLng) markerPoints.get(0);
-            LatLng dest = (LatLng) markerPoints.get(1);
-            Log.d("origin is ", String.valueOf(origin));
-            Log.d("dest is ", String.valueOf(dest));
-           // requestDirection(origin, dest);
 
+        pointLat =dest.latitude;
+        pointLon = dest.longitude;
+        sendDirectionRequest();
 
-            // Getting URL to the Google Directions API
-            String url = getDirectionsUrl(origin, dest);
-
-            DownloadTask downloadTask = new DownloadTask();
-
-            // Start downloading json data from Google Directions API
-            downloadTask.execute(url);
-        }
         int alpha = 127; // 50% transparent
         int value = 0;
         //Color myColour = new Color(255, value, value, alpha);
@@ -324,52 +347,36 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
       //  double
         //LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
     }
+    private void sendDirectionRequest(){
+        //double pointLat = dest.latitude;
+        //double pointLon = dest.longitude;
 
-   /* public void requestDirection(LatLng origin, LatLng destination) {
-       // Snackbar.make(btnRequestDirection, "Direction Requesting...", Snackbar.LENGTH_SHORT).show();
-        DateTime now = new DateTime();
-        DirectionsResult result = DirectionsApi.newRequest(getGeoContext())
-                .mode(TravelMode.DRIVING).origin(origin)
-                .destination(destination).departureTime(now)
-                .await();
-        GoogleDirection.withServerKey("AIzaSyDbsXK_kKA8vtviUjK0BlLhmq-g9j--j64")
-                .from(origin)
-                .to(destination)
-                .transportMode(TransportMode.DRIVING)
-                .execute(this);
-    }*/
+        if (markerPoints.size() >= 2) {
+            LatLng origin = (LatLng) markerPoints.get(0);
+            LatLng dest = (LatLng) markerPoints.get(1);
+            Log.d("origin is ", String.valueOf(origin));
+            Log.d("dest is ", String.valueOf(dest));
+            // requestDirection(origin, dest);
 
 
+            // Getting URL to the Google Directions API
+          //  while(lineOptionsSize==0) {
 
+                LatLng waypoint = new LatLng(pointLat,pointLon);
+                String url = getDirectionsUrl(origin, dest, waypoint);
 
- /*   public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+                DownloadTask downloadTask = new DownloadTask();
 
-        View v = inflater.inflate(R.layout.activity_maps, null, false);
+                // Start downloading json data from Google Directions API
+                downloadTask.execute(url);
+                //pointLat += .001065;
+                //pointLon -=-0.0014;
 
-        map = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMapAsync(this)
+          //  }
+        }
+    }
 
-        Marker hamburg = map.addMarker(new MarkerOptions().position(HAMBURG)
-                .title("Hamburg"));
-        Marker kiel = map.addMarker(new MarkerOptions()
-                .position(KIEL)
-                .title("Kiel")
-                .snippet("Kiel is cool")
-                .icon(BitmapDescriptorFactory
-                        .fromResource(R.drawable.ic_launcher)));
-
-        // Move the camera instantly to hamburg with a zoom of 15.
-        map.moveCamera(CameraUpdateFactory.newLatLngZoom(HAMBURG, 15));
-
-        // Zoom in, animating the camera.
-        map.animateCamera(CameraUpdateFactory.zoomTo(10), 2000, null);
-
-        //...
-
-        return v;
-    }*/
-
-    private String getDirectionsUrl(LatLng origin,LatLng dest){
+    private String getDirectionsUrl(LatLng origin,LatLng dest, LatLng waypoint){
 
 
         // Origin of route
@@ -378,17 +385,20 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         // Destination of route
         String str_dest = "destination="+dest.latitude+","+dest.longitude;
 
+        //waypoints
+        String str_waypoints = "waypoints="+waypoint.latitude+","+waypoint.longitude;
+
         // Sensor enabled
         String sensor = "sensor=false";
 
         // Building the parameters to the web service
-        String parameters = str_origin+"&"+str_dest+"&"+sensor;
+        String parameters = str_origin+"&"+str_dest+"&"+sensor+"&"+str_waypoints;
 
         // Output format
         String output = "json";
 
         // Building the url to the web service
-        String url = "https://maps.googleapis.com/maps/api/directions/"+output+"?"+parameters;
+        String url = "https://maps.googleapis.com/maps/api/directions/"+output+"?"+parameters+"&alternatives=true&mode=walking";//"&waypoints=optimize:true|38.901315, -77.043397|38.901315, -77.041740";
 
         return url;
     }
@@ -495,7 +505,12 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             ArrayList<LatLng> points = null;
             Log.d("HERE ", "IN ON POST EXECUTE");
             PolylineOptions lineOptions = null;
+            PolylineOptions route = new PolylineOptions(); //final route
             MarkerOptions markerOptions = new MarkerOptions();
+
+
+            ////WANT THE LAT TO BE .001065 above
+
             Log.d("Result size: ", String.valueOf(result.size()));
             // Traversing through all the routes
             for(int i=0;i<result.size();i++){
@@ -514,22 +529,71 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     double lat = Double.parseDouble(point.get("lat"));
                     double lng = Double.parseDouble(point.get("lng"));
                     LatLng position = new LatLng(lat, lng);
+                    //GO BACK HERE!!!
+                    //if(points.contains(position)){
+                    Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
+                    if(twoTimes(points, position)){
+                        Log.d(" in four times ", " four times");
+                        points.subList(points.indexOf(position)+1, points.size()).clear();
+                    }
 
-                    points.add(position);
-                  //  Log.d(" points size ", String.valueOf(points.size()));
+                       // Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
+                      //points.remove(position);
+                    //}
+                    else{
+                        points.add(position);
+
+                    }
 
                 }
+
+
                 Log.d(" new points size ", String.valueOf(points.size()));
                 // Adding all the points in the route to LineOptions
-                lineOptions.addAll(points);
-                lineOptions.width(6);
-                lineOptions.color(Color.RED);
+                //lineOptions.addAll(points);
+                double tolerance = 5; // meters
+                boolean isLocationOnPath=false;
+                for (LatLng cluster : avoid){
+                    Log.d(" first cluster ", "lat: "+String.valueOf(cluster.latitude) +", lon: "+String.valueOf(cluster.longitude));
+                    isLocationOnPath = PolyUtil.isLocationOnPath(cluster, points, true, tolerance);
+                    if(isLocationOnPath==true){
+                        break;
+                    }
+                }
+              //  boolean isLocationOnPath = PolyUtil.isLocationOnPath(avoid, points, true, tolerance);
+
+                if(isLocationOnPath == false){
+                   // route = lineOptions;
+                    lineOptions.addAll(points);
+                    lineOptions.width(6);
+                    lineOptions.color(Color.RED);
+                    break;
+                }
+                points.clear();
+
             }
 
             // Drawing polyline in the Google Map for the i-th route
+            //lineOptionsSize=lineOptions.getPoints().size();
             Log.d(" line options size ", String.valueOf(lineOptions.getPoints().size()));
             map.addPolyline(lineOptions);
+            if(lineOptions.getPoints().size()==0){
+                pointLat += .001065;
+                pointLon -=-0.0014;
+                sendDirectionRequest();
+            }
         }
+    }
+
+    public static boolean twoTimes(ArrayList<LatLng> list, LatLng position)
+    {
+        int numCount = 0;
+
+        for (LatLng thisPosition : list) {
+            if (thisPosition.equals(position)) numCount++;
+        }
+
+        return numCount >1;
     }
 }
 

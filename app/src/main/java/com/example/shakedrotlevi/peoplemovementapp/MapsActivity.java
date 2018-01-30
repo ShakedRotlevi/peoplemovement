@@ -43,14 +43,19 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import com.google.firebase.database.GenericTypeIndicator;
 import com.google.maps.android.PolyUtil;
 
 
@@ -100,6 +105,9 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
     int lineOptionsSize = 0;
     double pointLat, pointLon;
     ArrayList<LatLng> avoid = new ArrayList<LatLng>();
+    Polyline polyline = null;// = new Polyline();
+
+   // PolylineOptions lineOptions = new PolylineOptions();
 
     private long UPDATE_INTERVAL = 10 * 1000;  /* 10 secs */
     private long FASTEST_INTERVAL = 2000; /* 2 sec */
@@ -114,7 +122,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         mapFragment.getMapAsync(this);
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
-      //  startLocationUpdates();
+        //  startLocationUpdates();
     }
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -167,11 +175,21 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         settingsClient.checkLocationSettings(locationSettingsRequest);
 
         // new Google API SDK v11 uses getFusedLocationProviderClient(this)
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+       /* if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
 
             return;
+        }*/
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            Log.d(" no permission", " no permissions");
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    1);
+            return;
         }
+
+
         LocationServices.getFusedLocationProviderClient(this).requestLocationUpdates(mLocationRequest, new LocationCallback() {
                     @Override
                     public void onLocationResult(LocationResult locationResult) {
@@ -196,25 +214,40 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         Map<String, LocationObject> locations = new HashMap<>();
         LocationObject location1;// = new LocationObject(38.8977,-37.0365);
 
-        double lat=38.900742;   //min y (max y is 38.900765)
-        double lon = -77.049014;    //max x (min x is -77.049379)
+        double lat=38.900701;   //min y (max y is 38.900765)
+        double lon = -77.049541;    //max x (min x is -77.049379)
         /* crowd in whole foods area
         difference: .000365 in x lon
         difference: .000023 in y lat
         */
-        for(int i =0;i<100;i++){
-           lat = lat + 0.00000023;
-           lon = lon + 0.00000356;
+        for(int i =0;i<25;i++){
+            lat = lat + 0.00000023;
+            lon = lon + 0.00000356;
+            location1= new LocationObject(lat,lon);
+            locations.put("location"+ i, location1);
+        }
+        lon = -77.048865;
+        lat = 38.900342;
+        for(int i =25;i<50;i++){
+            lat = lat + 0.00000023;
+            lon = lon + 0.00000356;
+            location1= new LocationObject(lat,lon);
+            locations.put("location"+ i, location1);
+        }
+        lat = 38.902655;
+        lon = -77.048940;
+        for(int i =50;i<75;i++){
+            lat = lat + 0.00000023;
+            lon = lon + 0.00000356;
             location1= new LocationObject(lat,lon);
             locations.put("location"+ i, location1);
         }
 
-
-      //  DatabaseReference myRef = database.getReference("actual location");
+        //  DatabaseReference myRef = database.getReference("actual location");
         DatabaseReference refMap = database.getReference("locations map");
         DatabaseReference clusterArray = database.getReference("clusters").child("array");
 
-       // myRef.setValue("Lat:" + location.getLatitude() + ", Lon: "+ location.getLongitude());
+        // myRef.setValue("Lat:" + location.getLatitude() + ", Lon: "+ location.getLongitude());
         refMap.setValue(locations);
 
 
@@ -263,16 +296,36 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                         return null;
                     }
                 }*/
-                ArrayList<Double> arr = (ArrayList<Double> ) dataSnapshot.getValue();
-             //   Iterable cluster = dataSnapshot.getChildren();
-              //  Iterator iter = cluster.iterator();
-              //  Double lat = (Double) iter.next();
-               // Double lon = (Double) iter.next();
-                Double lat = arr.get(0);
-                Double lon = arr.get(1);
-                LatLng cluster = new LatLng(arr.get(0), arr.get(1));
+               // ArrayList<Double> arr = (ArrayList<Double>) dataSnapshot.getValue();
+                //   Iterable cluster = dataSnapshot.getChildren();
+                //  Iterator iter = cluster.iterator();
+                //  Double lat = (Double) iter.next();
+                // Double lon = (Double) iter.next();
+
+               /* for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+                    Double lat = postSnapshot.getValue(Double.class);
+                    Log.e("Get Data", post.<YourMethod>());
+                }*/
+
+
+                GenericTypeIndicator<ArrayList<Double>> child = new GenericTypeIndicator<ArrayList<Double>>() {};
+                ArrayList<Double> center = dataSnapshot.getValue(child);
+                Double lat = (Double) center.get(0);
+                Double lon = (Double)center.get(1);
+
+              /*  ArrayList arr = (ArrayList) dataSnapshot.getValue(ArrayList.class);
+
+                Double lat = (Double) arr.get(0);
+                Double lon = (Double)arr.get(1);*/
+                LatLng cluster = new LatLng(lat, lon);
                 avoid.add(cluster);
                 Log.d("THIS IS CLUSTER:", "LAT is " + lat + "LON IS "+ lon);
+                Circle circle = map.addCircle(new CircleOptions()
+                        .center(new LatLng(lat, lon))
+                        .radius(20)
+                        .strokeColor(android.R.color.black)
+                        .fillColor(Color.argb(125,255,0,0)));
+                sendDirectionRequest();
             }
 
             @Override
@@ -322,35 +375,46 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             marker.remove();
         }
         map = mapReady;
-        currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
-        marker = mapReady.addMarker(new MarkerOptions().position(currentLatLng)
-                .title("Marker in current Location"));
-        markerPoints.add(currentLatLng);
-        dest = new LatLng(38.901118, -77.048847);
-        markerPoints.add(dest);
-        mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
+        map.getUiSettings().setZoomControlsEnabled(true);
+        if(markerPoints.size()<1) {
+            currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+            marker = mapReady.addMarker(new MarkerOptions().position(currentLatLng)
+                    .title("Marker in current Location"));
+            markerPoints.add(currentLatLng);
+            dest = new LatLng(38.901118, -77.048847);
+            markerPoints.add(dest);
+            mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
 
-        pointLat =dest.latitude;
-        pointLon = dest.longitude;
-        sendDirectionRequest();
+            pointLat = dest.latitude;
+            pointLon = dest.longitude;
+            sendDirectionRequest();
+        }
 
         int alpha = 127; // 50% transparent
         int value = 0;
         //Color myColour = new Color(255, value, value, alpha);
-        Polygon polygon = map.addPolygon(new PolygonOptions()
+      /*  Circle circle = map.addCircle(new CircleOptions()
+                .center(new LatLng(-33.87365, 151.20689))
+                .radius(10000)
+                .strokeColor(android.R.color.black)
+                .fillColor(Color.argb(125,255,0,0)));*/
+
+       /* Polygon polygon = map.addPolygon(new PolygonOptions()
                 .add(new LatLng(38.899584, -77.048130), new LatLng(38.899584, -77.046697), new LatLng(38.898816, -77.046681), new LatLng(38.898346, -77.047299))
                 .strokeColor(android.R.color.black)
-                .fillColor(Color.argb(125,255,0,0)));
+                .fillColor(Color.argb(125,255,0,0)));*/
 
         // You can now create a LatLng Object for use with maps
         //double lat = location.getLatitude();
-      //  double
+        //  double
         //LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
     }
     private void sendDirectionRequest(){
         //double pointLat = dest.latitude;
         //double pointLon = dest.longitude;
-
+        Log.d(" size of marker points ", String.valueOf(markerPoints.size()));
+        Log.d(" first marker ", String.valueOf(markerPoints.get(0)));
+        Log.d(" second marker ", String.valueOf(markerPoints.get(1)));
         if (markerPoints.size() >= 2) {
             LatLng origin = (LatLng) markerPoints.get(0);
             LatLng dest = (LatLng) markerPoints.get(1);
@@ -360,19 +424,19 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
 
             // Getting URL to the Google Directions API
-          //  while(lineOptionsSize==0) {
+            //  while(lineOptionsSize==0) {
 
-                LatLng waypoint = new LatLng(pointLat,pointLon);
-                String url = getDirectionsUrl(origin, dest, waypoint);
+            LatLng waypoint = new LatLng(pointLat,pointLon);
+            String url = getDirectionsUrl(origin, dest, waypoint);
 
-                DownloadTask downloadTask = new DownloadTask();
+            DownloadTask downloadTask = new DownloadTask();
 
-                // Start downloading json data from Google Directions API
-                downloadTask.execute(url);
-                //pointLat += .001065;
-                //pointLon -=-0.0014;
+            // Start downloading json data from Google Directions API
+            downloadTask.execute(url);
+         //   pointLat += .001065;
+           // pointLon -=-0.0014;
 
-          //  }
+            //  }
         }
     }
 
@@ -504,18 +568,24 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         protected void onPostExecute(List<List<HashMap<String, String>>> result) {
             ArrayList<LatLng> points = null;
             Log.d("HERE ", "IN ON POST EXECUTE");
+            if(polyline != null) {
+                polyline.remove();
+            }
             PolylineOptions lineOptions = null;
-            PolylineOptions route = new PolylineOptions(); //final route
+         //   PolylineOptions route = new PolylineOptions(); //final route
             MarkerOptions markerOptions = new MarkerOptions();
+
+           // lineOptions.
 
 
             ////WANT THE LAT TO BE .001065 above
+            lineOptions = new PolylineOptions();
 
             Log.d("Result size: ", String.valueOf(result.size()));
             // Traversing through all the routes
             for(int i=0;i<result.size();i++){
                 points = new ArrayList<LatLng>();
-                lineOptions = new PolylineOptions();
+                //lineOptions = new PolylineOptions();
 
                 // Fetching i-th route
                 List<HashMap<String, String>> path = result.get(i);
@@ -524,21 +594,21 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 // Fetching all the points in i-th route
                 for(int j=0;j<path.size();j++){
                     HashMap<String,String> point = path.get(j);
-                    Log.d("points size: ", String.valueOf(point.size()));
+//                    Log.d("points size: ", String.valueOf(point.size()));
 
                     double lat = Double.parseDouble(point.get("lat"));
                     double lng = Double.parseDouble(point.get("lng"));
                     LatLng position = new LatLng(lat, lng);
                     //GO BACK HERE!!!
                     //if(points.contains(position)){
-                    Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
+                  //  Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
                     if(twoTimes(points, position)){
                         Log.d(" in four times ", " four times");
                         points.subList(points.indexOf(position)+1, points.size()).clear();
                     }
 
-                       // Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
-                      //points.remove(position);
+                    // Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
+                    //points.remove(position);
                     //}
                     else{
                         points.add(position);
@@ -551,7 +621,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 Log.d(" new points size ", String.valueOf(points.size()));
                 // Adding all the points in the route to LineOptions
                 //lineOptions.addAll(points);
-                double tolerance = 5; // meters
+                double tolerance = 10; // meters
                 boolean isLocationOnPath=false;
                 for (LatLng cluster : avoid){
                     Log.d(" first cluster ", "lat: "+String.valueOf(cluster.latitude) +", lon: "+String.valueOf(cluster.longitude));
@@ -560,13 +630,14 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                         break;
                     }
                 }
-              //  boolean isLocationOnPath = PolyUtil.isLocationOnPath(avoid, points, true, tolerance);
+                //  boolean isLocationOnPath = PolyUtil.isLocationOnPath(avoid, points, true, tolerance);
 
                 if(isLocationOnPath == false){
-                   // route = lineOptions;
+                    Log.d(" not in path ", "not in path");
+                    // route = lineOptions;
                     lineOptions.addAll(points);
-                    lineOptions.width(6);
-                    lineOptions.color(Color.RED);
+                    lineOptions.width(8);
+                    lineOptions.color(Color.GREEN);
                     break;
                 }
                 points.clear();
@@ -576,10 +647,13 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             // Drawing polyline in the Google Map for the i-th route
             //lineOptionsSize=lineOptions.getPoints().size();
             Log.d(" line options size ", String.valueOf(lineOptions.getPoints().size()));
-            map.addPolyline(lineOptions);
+            polyline = map.addPolyline(lineOptions);
             if(lineOptions.getPoints().size()==0){
+               // if()
                 pointLat += .001065;
                 pointLon -=-0.0014;
+                //pointLat += .001079;
+                //pointLon -=-0.0029;
                 sendDirectionRequest();
             }
         }

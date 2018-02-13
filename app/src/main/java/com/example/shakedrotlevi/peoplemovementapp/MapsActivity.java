@@ -186,6 +186,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     1);
+            startLocationUpdates(map);
             return;
         }
 
@@ -218,30 +219,33 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         double lon = -77.049541;    //max x (min x is -77.049379)
         /* crowd in whole foods area
         difference: .000365 in x lon
-        difference: .000023 in y lat
-        */
-        for(int i =0;i<25;i++){
+        difference: .000023 in y lat*/
+
+        lat = 38.899595;
+        lon = -77.049717;
+
+        for(int i =0;i<27;i++){
             lat = lat + 0.00000023;
             lon = lon + 0.00000356;
             location1= new LocationObject(lat,lon);
             locations.put("location"+ i, location1);
-        }
-        lon = -77.048865;
-        lat = 38.900342;
+        }/*
+        lon = -77.048808;
+        lat = 38.899857;
         for(int i =25;i<50;i++){
             lat = lat + 0.00000023;
             lon = lon + 0.00000356;
             location1= new LocationObject(lat,lon);
             locations.put("location"+ i, location1);
-        }
-        lat = 38.902655;
+        }*/
+      /*  lat = 38.902655;
         lon = -77.048940;
         for(int i =50;i<75;i++){
             lat = lat + 0.00000023;
             lon = lon + 0.00000356;
             location1= new LocationObject(lat,lon);
             locations.put("location"+ i, location1);
-        }
+        }*/
 
         //  DatabaseReference myRef = database.getReference("actual location");
         DatabaseReference refMap = database.getReference("locations map");
@@ -325,7 +329,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                         .radius(20)
                         .strokeColor(android.R.color.black)
                         .fillColor(Color.argb(125,255,0,0)));
-                sendDirectionRequest();
+               // sendDirectionRequest();
             }
 
             @Override
@@ -342,6 +346,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 TextView welcomeText = (TextView) toastLayout.getChildAt(0);
                 welcomeText.setTextSize(30);
                 toast.show();*/
+                //sendDirectionRequest();
             }
 
             @Override
@@ -381,7 +386,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             marker = mapReady.addMarker(new MarkerOptions().position(currentLatLng)
                     .title("Marker in current Location"));
             markerPoints.add(currentLatLng);
-            dest = new LatLng(38.901118, -77.048847);
+            dest = new LatLng(38.900715, -77.047048);
             markerPoints.add(dest);
             mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
 
@@ -582,7 +587,9 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             lineOptions = new PolylineOptions();
 
             Log.d("Result size: ", String.valueOf(result.size()));
-            // Traversing through all the routes
+
+            boolean isLocationOnPath = true;
+
             for(int i=0;i<result.size();i++){
                 points = new ArrayList<LatLng>();
                 //lineOptions = new PolylineOptions();
@@ -599,62 +606,145 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     double lat = Double.parseDouble(point.get("lat"));
                     double lng = Double.parseDouble(point.get("lng"));
                     LatLng position = new LatLng(lat, lng);
-                    //GO BACK HERE!!!
-                    //if(points.contains(position)){
-                  //  Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
-                    if(twoTimes(points, position)){
+                    if (twoTimes(points, position)) {
                         Log.d(" in four times ", " four times");
-                        points.subList(points.indexOf(position)+1, points.size()).clear();
+                        points.subList(points.indexOf(position) + 1, points.size()).clear();
                     }
 
                     // Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
                     //points.remove(position);
                     //}
-                    else{
+                    else {
                         points.add(position);
 
                     }
+                  //  points.add(position);
+                    //GO BACK HERE!!!
+                    //if(points.contains(position)){
+                    //  Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
 
                 }
 
 
                 Log.d(" new points size ", String.valueOf(points.size()));
                 // Adding all the points in the route to LineOptions
+
                 //lineOptions.addAll(points);
                 double tolerance = 10; // meters
-                boolean isLocationOnPath=false;
+                isLocationOnPath=false;
                 for (LatLng cluster : avoid){
                     Log.d(" first cluster ", "lat: "+String.valueOf(cluster.latitude) +", lon: "+String.valueOf(cluster.longitude));
                     isLocationOnPath = PolyUtil.isLocationOnPath(cluster, points, true, tolerance);
                     if(isLocationOnPath==true){
+                        Log.d(" loc on path is true ", " true");
+                        points.clear();
                         break;
                     }
                 }
                 //  boolean isLocationOnPath = PolyUtil.isLocationOnPath(avoid, points, true, tolerance);
 
-                if(isLocationOnPath == false){
+                if(isLocationOnPath == false) {
                     Log.d(" not in path ", "not in path");
                     // route = lineOptions;
                     lineOptions.addAll(points);
                     lineOptions.width(8);
-                    lineOptions.color(Color.GREEN);
+                    lineOptions.color(Color.BLACK);
+                    polyline = map.addPolyline(lineOptions);
                     break;
+
                 }
                 points.clear();
 
             }
+            if(isLocationOnPath == true) {
 
-            // Drawing polyline in the Google Map for the i-th route
-            //lineOptionsSize=lineOptions.getPoints().size();
-            Log.d(" line options size ", String.valueOf(lineOptions.getPoints().size()));
-            polyline = map.addPolyline(lineOptions);
-            if(lineOptions.getPoints().size()==0){
-               // if()
-                pointLat += .001065;
-                pointLon -=-0.0014;
-                //pointLat += .001079;
-                //pointLon -=-0.0029;
-                sendDirectionRequest();
+
+                // Traversing through all the routes
+                for (int i = 0; i < result.size(); i++) {
+
+                    points = new ArrayList<LatLng>();
+                    //lineOptions = new PolylineOptions();
+
+                    // Fetching i-th route
+                    List<HashMap<String, String>> path = result.get(i);
+                    Log.d("Path size: ", String.valueOf(path.size()));
+
+                    // Fetching all the points in i-th route
+                    for (int j = 0; j < path.size(); j++) {
+                        HashMap<String, String> point = path.get(j);
+//                    Log.d("points size: ", String.valueOf(point.size()));
+
+                        double lat = Double.parseDouble(point.get("lat"));
+                        double lng = Double.parseDouble(point.get("lng"));
+                        LatLng position = new LatLng(lat, lng);
+                        //GO BACK HERE!!!
+                        //if(points.contains(position)){
+                        //  Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
+                        if (twoTimes(points, position)) {
+                            Log.d(" in four times ", " four times");
+                            points.subList(points.indexOf(position) + 1, points.size()).clear();
+                        }
+
+                        // Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
+                        //points.remove(position);
+                        //}
+                        else {
+                            points.add(position);
+
+                        }
+
+                    }
+
+
+                    Log.d(" new points size ", String.valueOf(points.size()));
+                    // Adding all the points in the route to LineOptions
+                    //lineOptions.addAll(points);
+                    double tolerance = 3; // meters
+                     isLocationOnPath = false;
+                    for (LatLng cluster : avoid) {
+                        Log.d(" first cluster ", "lat: " + String.valueOf(cluster.latitude) + ", lon: " + String.valueOf(cluster.longitude));
+                        isLocationOnPath = PolyUtil.isLocationOnPath(cluster, points, true, tolerance);
+                        if (isLocationOnPath == true) {
+                            break;
+                        }
+                    }
+                    //  boolean isLocationOnPath = PolyUtil.isLocationOnPath(avoid, points, true, tolerance);
+
+                    if (isLocationOnPath == false) {
+                        Log.d(" not in path ", "not in path");
+                        // route = lineOptions;
+                        lineOptions.addAll(points);
+                        lineOptions.width(8);
+                        lineOptions.color(Color.BLACK);
+                        break;
+                    }
+                    points.clear();
+
+                }
+
+
+                // Drawing polyline in the Google Map for the i-th route
+                //lineOptionsSize=lineOptions.getPoints().size();
+                Log.d(" line options size ", String.valueOf(lineOptions.getPoints().size()));
+                polyline = map.addPolyline(lineOptions);
+                if (lineOptions.getPoints().size() == 0) {
+                    // if()
+                    Log.d(" in line options ", "went in line options");
+
+                   // pointLat += .001065;
+
+                    pointLat += .000565;
+                    // pointLat += .001070;
+
+                    //pointLon -= -0.0014;
+                    pointLon -= -0.00054;
+
+
+                    //pointLon -=-0.002;
+                    //pointLat += .001079;
+                    //pointLon -=-0.0029;
+                    sendDirectionRequest();
+                }
             }
         }
     }

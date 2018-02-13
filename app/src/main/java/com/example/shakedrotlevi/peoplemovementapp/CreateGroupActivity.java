@@ -89,8 +89,8 @@ public class CreateGroupActivity extends AppCompatActivity{
         DatabaseReference refEvents = database.getReference("events");
         // this new, empty ref only exists locally
         //DatabaseReference newChildRef = refEvents.push();
-
        // newChildRef.setValue({name:'name'});
         refEvents.push().setValue(group);
+        Log.d(" PUSHED EVENT", " PUSHED EVENT");
     }
 }

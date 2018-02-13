@@ -14,6 +14,7 @@ import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -97,6 +98,7 @@ public class SearchActivity extends AppCompatActivity {
         arrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, eventsList);
         listViewEvents.setAdapter(arrayAdapter);
 
+
         // Attach a ChildEventListener to the teacher database, so we can retrieve the teacher entries
         databaseEvents.addChildEventListener(new ChildEventListener() {
             @Override
@@ -131,5 +133,24 @@ public class SearchActivity extends AppCompatActivity {
 
             }
         });
+        listViewEvents.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+                //Here´s the problem! The super.OnItemClick
+                //doesn´t work.//
+
+                //Here´s the problem! The super. doesn´t work.//
+
+                String event = eventsList.get(position);
+
+                Intent intent = new Intent(SearchActivity.this, GroupActivity.class);
+                intent.putExtra("group", event);
+                startActivity(intent);
+            }
+        });
+
+
     }
+
 }

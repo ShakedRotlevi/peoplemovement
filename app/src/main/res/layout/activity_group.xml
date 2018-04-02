@@ -91,7 +91,7 @@
         app:layout_constraintLeft_toRightOf="@+id/description1"
         app:layout_constraintTop_toBottomOf="@+id/time"/>
     <Button
-        android:id="@+id/directions"
+        android:id="@+id/join"
         android:layout_width="180dp"
         android:layout_height="wrap_content"
         android:paddingLeft="16dp"

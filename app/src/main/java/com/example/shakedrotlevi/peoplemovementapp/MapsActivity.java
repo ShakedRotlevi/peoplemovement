@@ -55,7 +55,10 @@ import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.GenericTypeIndicator;
+import com.google.firebase.database.Query;
 import com.google.maps.android.PolyUtil;
 
 
@@ -102,9 +105,13 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
     ArrayList markerPoints= new ArrayList();
     LatLng currentLatLng;
     LatLng dest;
+    LatLng origin;
     int lineOptionsSize = 0;
     double pointLat, pointLon;
     ArrayList<LatLng> avoid = new ArrayList<LatLng>();
+
+    int counter=0;
+
     Polyline polyline = null;// = new Polyline();
 
    // PolylineOptions lineOptions = new PolylineOptions();
@@ -200,7 +207,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 },
                 Looper.myLooper());
     }
-    public void onLocationChanged(Location location, GoogleMap mapReady) {
+    public void onLocationChanged(final Location location, final GoogleMap mapReady) {
         // New location has now been determined
         Log.d("myTag", "LOCATION CHANGED");
         String msg = "Updated Location: " +
@@ -221,8 +228,8 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         difference: .000365 in x lon
         difference: .000023 in y lat*/
 
-        lat = 38.899595;
-        lon = -77.049717;
+        lat = 38.900029;
+        lon = -77.048844;
 
         for(int i =0;i<27;i++){
             lat = lat + 0.00000023;
@@ -249,7 +256,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
         //  DatabaseReference myRef = database.getReference("actual location");
         DatabaseReference refMap = database.getReference("locations map");
-        DatabaseReference clusterArray = database.getReference("clusters").child("array");
+        DatabaseReference clusterArray = database.getReference("clusters");//.child("array");
 
         // myRef.setValue("Lat:" + location.getLatitude() + ", Lon: "+ location.getLongitude());
         refMap.setValue(locations);
@@ -381,19 +388,136 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         }
         map = mapReady;
         map.getUiSettings().setZoomControlsEnabled(true);
+        final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+
         if(markerPoints.size()<1) {
             currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+
             marker = mapReady.addMarker(new MarkerOptions().position(currentLatLng)
                     .title("Marker in current Location"));
-            markerPoints.add(currentLatLng);
+
+
+            //COMMENTED GO BACK
+           /* markerPoints.add(currentLatLng);
             dest = new LatLng(38.900715, -77.047048);
             markerPoints.add(dest);
             mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
 
             pointLat = dest.latitude;
-            pointLon = dest.longitude;
-            sendDirectionRequest();
+            pointLon = dest.longitude;*/
+
+
+            /*
+            NEED TO CHECK IF EVENT IS ONGOING!!!!!!!
+            First check what group the user is in
+             */
+
+            Log.d(" user id ", " user id ");
+            Log.d(" user id ", user.getUid());
+
+            //check what events user is a member of
+            Query query = FirebaseDatabase.getInstance().getReference().child("events");
+
+            query.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    String status;
+                    for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
+                        Log.d(" before contains user ", " before contains user ");
+                        ArrayList<String> temp = (ArrayList<String>) childDataSnapshot.child("members").getValue();
+                        if(temp.contains(user.getUid())){
+                            Log.d(" contains user ", " contains user ");
+
+
+
+
+                            status = (String)childDataSnapshot.child("status").getValue();
+
+                            Log.d(" STATUS IS ", status);
+
+                            if(status.equals("ONGOING")==true){
+                                Log.d(" IT IS ONGOING ", " IT IS ONGOING ");
+                                origin = new LatLng((Double)childDataSnapshot.child("startLoc").child("lat").getValue(),(Double)childDataSnapshot.child("startLoc").child("lon").getValue() );
+                                dest = new LatLng((Double)childDataSnapshot.child("endLoc").child("lat").getValue(),(Double)childDataSnapshot.child("endLoc").child("lon").getValue() );
+                                markerPoints.add(origin);
+                                markerPoints.add(dest);
+                                mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
+
+                                pointLat = dest.latitude;
+                                pointLon = dest.longitude;
+
+
+                                sendDirectionRequest();
+                                break;
+                            }
+                        }
+                    }
+
+
+                    /*for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
+
+                        //(String)childDataSnapshot.child("status").getValue();
+                        if(status == "ONGOING"){
+                            sendDirectionRequest();
+                            break;
+                        }
+
+
+                    }*/
+
+                }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+
+                }
+            });
+
+
+           //GO BACK
+           // sendDirectionRequest();
         }
+
+        //FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        //Query creators = database.getReference("events").orderByChild("creator");
+        //Log.d(" creators", creators.;
+
+
+
+        //database.getReference("events").orderByChild("creator").equalTo(user.getUid())//.on("value", function(snapshot) {
+
+
+
+       database.getReference("events").orderByChild("creator").equalTo(user.getUid()).addValueEventListener(new ValueEventListener() {
+
+       // ValueEventListener eventListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+              //  Log.d(" creators", (String) dataSnapshot.getValue());
+                Log.d(" hello here ", " hello here ");
+                if(!dataSnapshot.exists()) {
+                    //create new user
+                    Log.d(" hello doesnt exists ", " hello doesnt exists ");
+                }
+                else{
+                    Log.d(" hello exists ", " hello exists ");
+                    LocationObject newLoc = new LocationObject(location.getLatitude(), location.getLongitude());
+
+                    //dataSnapshot.getRef().child("groupLoc").setValue(newLoc);
+                    //dataSnapshot.child("groupLoc").getRef().setValue(newLoc);
+                    for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
+                        //  groupID = (String)childDataSnapshot.getKey();
+                        childDataSnapshot.child("groupLoc").getRef().setValue(newLoc);
+                    }
+
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {}
+           });
+        //userNameRef.addListenerForSingleValueEvent(eventListener);
 
         int alpha = 127; // 50% transparent
         int value = 0;
@@ -421,7 +545,10 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         Log.d(" first marker ", String.valueOf(markerPoints.get(0)));
         Log.d(" second marker ", String.valueOf(markerPoints.get(1)));
         if (markerPoints.size() >= 2) {
-            LatLng origin = (LatLng) markerPoints.get(0);
+            //LatLng origin = (LatLng) markerPoints.get(0);
+
+            //origin =
+
             LatLng dest = (LatLng) markerPoints.get(1);
             Log.d("origin is ", String.valueOf(origin));
             Log.d("dest is ", String.valueOf(dest));
@@ -732,12 +859,25 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     Log.d(" in line options ", "went in line options");
 
                    // pointLat += .001065;
-
+                    counter++;
+                    if(counter < 10){
                     pointLat += .000565;
                     // pointLat += .001070;
 
                     //pointLon -= -0.0014;
                     pointLon -= -0.00054;
+                    }
+
+                    else if(counter == 10){
+                        pointLat -= 0.01695;
+                        pointLon += 0.0162;
+                        pointLat -= .000565;
+                        pointLon += -0.00054;
+                    }
+                    else{
+                        pointLat -= .000565;
+                        pointLon += -0.00054;
+                    }
 
 
                     //pointLon -=-0.002;

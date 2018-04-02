@@ -1,8 +1,11 @@
 package com.example.shakedrotlevi.peoplemovementapp;
 
+import android.app.TimePickerDialog;
+import java.util.Calendar;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.nfc.Tag;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
@@ -12,10 +15,21 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.TimePicker;
 import android.widget.VideoView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.places.GeoDataClient;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.PlaceDetectionClient;
+import com.google.android.gms.location.places.Places;
+import com.google.android.gms.location.places.ui.PlaceAutocompleteFragment;
+import com.google.android.gms.location.places.ui.PlaceSelectionListener;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -33,6 +47,12 @@ Group name, event start time, event start location, event end location, event de
  */
 public class CreateGroupActivity extends AppCompatActivity{
     private TextView mTextMessage;
+    protected GeoDataClient mGeoDataClient;
+    protected PlaceDetectionClient mPlaceDetectionClient;
+    LocationObject startLoc, endLoc;
+    String startName, endName;
+    int pickedHour=0;
+    int pickedMin = 0;
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -62,9 +82,88 @@ public class CreateGroupActivity extends AppCompatActivity{
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_create_group);
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+
+
+        // Construct a GeoDataClient.
+        mGeoDataClient = Places.getGeoDataClient(this, null);
+
+        // Construct a PlaceDetectionClient.
+        mPlaceDetectionClient = Places.getPlaceDetectionClient(this, null);
+
+        PlaceAutocompleteFragment autocompleteFragmentStart = (PlaceAutocompleteFragment)
+                getFragmentManager().findFragmentById(R.id.place_autocomplete_fragment);
+
+
+        PlaceAutocompleteFragment autocompleteFragmentEnd = (PlaceAutocompleteFragment)
+                getFragmentManager().findFragmentById(R.id.place_autocomplete_fragment1);
+
+        autocompleteFragmentStart.setOnPlaceSelectedListener(new PlaceSelectionListener() {
+            @Override
+            public void onPlaceSelected(Place place) {
+                // TODO: Get info about the selected place.
+                Log.i(" The Place: ", "Place: " + place.getName());
+                startLoc= new LocationObject(place.getLatLng().latitude,place.getLatLng().longitude);
+                startName = (String)place.getName();
+
+            }
+
+            @Override
+            public void onError(Status status) {
+                // TODO: Handle the error.
+                Log.i(" The Place: ", "An error occurred: " + status);
+            }
+        });
+        autocompleteFragmentEnd.setOnPlaceSelectedListener(new PlaceSelectionListener() {
+            @Override
+            public void onPlaceSelected(Place place) {
+                // TODO: Get info about the selected place.
+
+                Log.i(" The Place: ", "Place: " + place.getName());
+
+
+                endLoc= new LocationObject(place.getLatLng().latitude,place.getLatLng().longitude);
+
+                endName = (String)place.getName();
+            }
+
+            @Override
+            public void onError(Status status) {
+                // TODO: Handle the error.
+                Log.i(" The Place: ", "An error occurred: " + status);
+            }
+        });
+
+        final EditText timePicker1 = (EditText) findViewById(R.id.editView2);
+
+        timePicker1.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                // TODO Auto-generated method stub
+                Calendar mcurrentTime = Calendar.getInstance();
+                int hour = mcurrentTime.get(Calendar.HOUR_OF_DAY);
+                int minute = mcurrentTime.get(Calendar.MINUTE);
+                TimePickerDialog mTimePicker;
+                mTimePicker = new TimePickerDialog(CreateGroupActivity.this, new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker timePicker, int selectedHour, int selectedMinute) {
+                        timePicker1.setText(( selectedHour + ":" + selectedMinute));
+                        pickedHour = selectedHour;
+                        pickedMin = selectedMinute;
+
+                    }
+                }, hour, minute, true);//Yes 24 hour time
+                mTimePicker.setTitle("Select Time");
+                mTimePicker.show();
+
+            }
+        });
+
 
     }
     public void onClickAdd(View button) {
@@ -75,15 +174,42 @@ public class CreateGroupActivity extends AppCompatActivity{
         final EditText timeField = (EditText) findViewById(R.id.editView2);
         String time = timeField.getText().toString();
 
-        final EditText startField = (EditText) findViewById(R.id.editView3);
-        String start = startField.getText().toString();
-        final EditText endField = (EditText) findViewById(R.id.editView4);
-        String end = endField.getText().toString();
+       // final EditText startField = (EditText) findViewById(R.id.editView3);
+        //String start = startField.getText().toString();
+
+
+
+  /*  <EditText
+        android:id="@+id/editView3"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:layout_width="0dp"
+        app:layout_constraintTop_toBottomOf="@+id/editView2"
+        app:layout_constraintLeft_toRightOf="@+id/textView2"
+        app:layout_constraintRight_toRightOf="parent"
+                >
+    </EditText>*/
+       // String start = "start";
+
+
+        //final EditText endField = (EditText) findViewById(R.id.editView4);
+        //String end = endField.getText().toString();
+
+       // String end = "end";
+
+
         final EditText descriptionField = (EditText) findViewById(R.id.editView5);
         String description = descriptionField.getText().toString();
 
         final FirebaseDatabase database = FirebaseDatabase.getInstance();
-        Group group= new Group(name, time, start, end, description);
+
+        String user = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+        ArrayList<String> members= new ArrayList<String>();
+        members.add(user);
+        LocationObject tempLoc = new LocationObject(-33.87365, 151.20689);
+        //time!!!!!
+        Group group= new Group(name, startLoc, endLoc, startName, endName, description, user, tempLoc, members, "INCOMPLETE", time, pickedHour,pickedMin);
         //List<group> events = new ArrayList<>();
         //events.add(name);
         DatabaseReference refEvents = database.getReference("events");

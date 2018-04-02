@@ -105,6 +105,9 @@ public class SearchActivity extends AppCompatActivity {
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
 
                 // Get the value from the DataSnapshot and add it to the teachers' list
+                Log.d(" THis is the VALUE ", " THE VALUE IS ");
+              //  Log.d(" HERE " , dataSnapshot.getValue().toString());
+                dataSnapshot.child("members");
                 Group event = dataSnapshot.getValue(Group.class);
                 String eventName = event.getName();
                 eventsList.add(eventName);

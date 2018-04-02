@@ -4,7 +4,7 @@ admin.initializeApp(functions.config().firebase);
 var clusterfck = require("clusterfck");
 var clusterMaker = require('clusters');
 
-exports.locationImage = functions.database //this is a function using the database
+/*exports.locationImage = functions.database //this is a function using the database
 	.ref('/locations map/{location}')
 	.onWrite(event => {
 
@@ -20,7 +20,7 @@ exports.locationImage = functions.database //this is a function using the databa
 	console.log("Working")
 
 	return event.data.ref.child('welcome').set(location.welcome);
-})
+})*/
 
 exports.cluster = functions.database
 	.ref('/locations map/')

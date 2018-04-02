@@ -6,7 +6,7 @@ package com.example.shakedrotlevi.peoplemovementapp;
 
 public class LocationObject {
     public double lat, lon;
-    public static String welcome;
+//    public static String welcome;
 
     public LocationObject(){
 
@@ -28,7 +28,7 @@ public class LocationObject {
         return lon;
     }
 
-    public String getWelcome(){return welcome;}
+   // public String getWelcome(){return welcome;}
 
 
    /* public void setLongitude(double longitude) {

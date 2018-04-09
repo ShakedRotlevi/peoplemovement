@@ -296,7 +296,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         });
 
 
-        clusterArray.addChildEventListener(new ChildEventListener() {
+        clusterArray.child("array").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String prevChildKey) {
                 //Double lat = dataSnapshot.getValue(Double.class);
@@ -318,11 +318,23 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     Log.e("Get Data", post.<YourMethod>());
                 }*/
 
-
+                //Log.d("THIS IS CLUSTER:", );
                 GenericTypeIndicator<ArrayList<Double>> child = new GenericTypeIndicator<ArrayList<Double>>() {};
                 ArrayList<Double> center = dataSnapshot.getValue(child);
+
                 Double lat = (Double) center.get(0);
                 Double lon = (Double)center.get(1);
+
+
+               // Double size = (Double)center.get(2);
+
+
+                //dataSnapshot.child("0").getValue();
+               // GenericTypeIndicator<Double> child = new GenericTypeIndicator<Double>() {};
+                //GenericTypeIndicator<Integer> child2 = new GenericTypeIndicator<Integer>() {};
+               // Double lat = (Double) dataSnapshot.child("array").child("0").getValue(Double.class);
+                //Double lon = (Double)dataSnapshot.child("array").child("1").getValue(Double.class);
+                //int size = (Integer)dataSnapshot.child("array").child("2").getValue(Integer.class);
 
               /*  ArrayList arr = (ArrayList) dataSnapshot.getValue(ArrayList.class);
 

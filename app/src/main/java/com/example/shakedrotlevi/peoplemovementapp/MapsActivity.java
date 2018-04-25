@@ -108,13 +108,27 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
     LatLng origin;
     int lineOptionsSize = 0;
     double pointLat, pointLon;
+
+    Circle groupLoc;
     ArrayList<LatLng> avoid = new ArrayList<LatLng>();
+
+    LocationObject newLoc;
+
+    Boolean checkedOnce = false;
 
     int counter=0;
 
     Polyline polyline = null;// = new Polyline();
 
+    Map<String, LocationObject> locations = new HashMap<>(); // for storing locations for clusters
+
    // PolylineOptions lineOptions = new PolylineOptions();
+
+
+    final FirebaseDatabase database = FirebaseDatabase.getInstance();
+    DatabaseReference clusterArray = database.getReference("clusters");
+    final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+
 
     private long UPDATE_INTERVAL = 10 * 1000;  /* 10 secs */
     private long FASTEST_INTERVAL = 2000; /* 2 sec */
@@ -124,13 +138,15 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         setContentView(R.layout.activity_maps);
 
         MapFragment mapFragment = (MapFragment) getFragmentManager()
-                .findFragmentById(R.id.map);
+                .findFragmentById(R.id.map);    //create map fragment
 
         mapFragment.getMapAsync(this);
-        BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
+        BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation); //set navigation menu
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
         //  startLocationUpdates();
     }
+
+    //initialize the bottom navigation menu
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
 
@@ -141,7 +157,6 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     startActivity(new Intent(MapsActivity.this, MainActivity.class));
                     return true;
                 case R.id.navigation_map:
-                    Log.d("myTag", "Clicked Map");
                     return true;
                 case R.id.navigation_create:
                     startActivity(new Intent(MapsActivity.this, CreateGroupActivity.class));
@@ -151,12 +166,22 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         }
     };
 
+
+
+    //when map ready, start location updates
     @Override
     public void onMapReady(GoogleMap mapReady) {
+        map = mapReady;
         startLocationUpdates( mapReady);
+        //generateLocations(38.899934,-77.046641,1); //generate clusters
+
+
+        generateLocations(38.898313, -77.049227,0);//smith center on G
+        generateLocations(38.899605, -77.049646,28);//seh on h
 
     }
 
+    //map set up
     public void setUpMap(){
 
         map.setMapType(GoogleMap.MAP_TYPE_NORMAL);
@@ -177,23 +202,15 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         builder.addLocationRequest(mLocationRequest);
         LocationSettingsRequest locationSettingsRequest = builder.build();
         // Check whether location settings are satisfied
-        // https://developers.google.com/android/reference/com/google/android/gms/location/SettingsClient
         SettingsClient settingsClient = LocationServices.getSettingsClient(this);
         settingsClient.checkLocationSettings(locationSettingsRequest);
 
-        // new Google API SDK v11 uses getFusedLocationProviderClient(this)
-       /* if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-
-            return;
-        }*/
+        //check if we have permissions, if not request it
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            Log.d(" no permission", " no permissions");
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     1);
-            startLocationUpdates(map);
+            startLocationUpdates(map);  //when we have permission, start location updates
             return;
         }
 
@@ -201,171 +218,63 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         LocationServices.getFusedLocationProviderClient(this).requestLocationUpdates(mLocationRequest, new LocationCallback() {
                     @Override
                     public void onLocationResult(LocationResult locationResult) {
-                        // do work here
                         onLocationChanged(locationResult.getLastLocation(),mapReady);
                     }
                 },
                 Looper.myLooper());
     }
-    public void onLocationChanged(final Location location, final GoogleMap mapReady) {
-        // New location has now been determined
-        Log.d("myTag", "LOCATION CHANGED");
-        String msg = "Updated Location: " +
-                Double.toString(location.getLatitude()) + "," +
-                Double.toString(location.getLongitude());
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-        Log.d("long and lat", msg);
-
-        final FirebaseDatabase database = FirebaseDatabase.getInstance();
 
 
-        Map<String, LocationObject> locations = new HashMap<>();
-        LocationObject location1;// = new LocationObject(38.8977,-37.0365);
+    //generate clusters
+    public void generateLocations(double lat, double lon, int k){
 
-        double lat=38.900701;   //min y (max y is 38.900765)
-        double lon = -77.049541;    //max x (min x is -77.049379)
-        /* crowd in whole foods area
+        LocationObject location1;
+        //double lat=lat;, lon;
+        int clusterSize = k+27;
+
+        /* distance for creating clusters
         difference: .000365 in x lon
         difference: .000023 in y lat*/
 
-        lat = 38.900029;
-        lon = -77.048844;
 
-        for(int i =0;i<27;i++){
-            lat = lat + 0.00000023;
-            lon = lon + 0.00000356;
-            location1= new LocationObject(lat,lon);
-            locations.put("location"+ i, location1);
-        }/*
-        lon = -77.048808;
-        lat = 38.899857;
-        for(int i =25;i<50;i++){
-            lat = lat + 0.00000023;
-            lon = lon + 0.00000356;
-            location1= new LocationObject(lat,lon);
-            locations.put("location"+ i, location1);
-        }*/
-      /*  lat = 38.902655;
-        lon = -77.048940;
-        for(int i =50;i<75;i++){
-            lat = lat + 0.00000023;
-            lon = lon + 0.00000356;
-            location1= new LocationObject(lat,lon);
-            locations.put("location"+ i, location1);
-        }*/
 
-        //  DatabaseReference myRef = database.getReference("actual location");
+        for(int i=k;i<clusterSize;i++){
+            lat = lat + 0.00000023;
+            lon = lon + 0.00000356;
+            location1= new LocationObject(lat,lon);
+            locations.put("location"+ i, location1);
+        }
+
         DatabaseReference refMap = database.getReference("locations map");
-        DatabaseReference clusterArray = database.getReference("clusters");//.child("array");
-
-        // myRef.setValue("Lat:" + location.getLatitude() + ", Lon: "+ location.getLongitude());
         refMap.setValue(locations);
 
+    }
 
-
-        refMap.addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String prevChildKey) {
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String prevChildKey) {
-               /* String loc = dataSnapshot.getKey();
-                String welcome = dataSnapshot.getValue(LocationObject.class).getWelcome();
-                //String welcome = dataSnapshot.
-                Log.d("THIS IS WHAT WELCOME IS", "Welcome is " + welcome);
-                Toast toast= Toast.makeText(MapsActivity.this, welcome, Toast.LENGTH_LONG);
-                toast.setGravity(Gravity.CENTER, 0, 0);
-                View view = toast.getView();
-                view.setBackgroundColor(Color.BLUE);
-                LinearLayout toastLayout = (LinearLayout) toast.getView();
-                TextView welcomeText = (TextView) toastLayout.getChildAt(0);
-                welcomeText.setTextSize(30);
-                toast.show();*/
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String prevChildKey) {}
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {}
-        });
-
-
+    //show clusters on the map
+    public void showClusters(){
         clusterArray.child("array").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String prevChildKey) {
-                //Double lat = dataSnapshot.getValue(Double.class);
-              /*  Iterable <Double> cluster = new Iterable<Double>() {
-                    @NonNull
-                    @Override
-                    public Iterator<Double> iterator() {
-                        return null;
-                    }
-                }*/
-               // ArrayList<Double> arr = (ArrayList<Double>) dataSnapshot.getValue();
-                //   Iterable cluster = dataSnapshot.getChildren();
-                //  Iterator iter = cluster.iterator();
-                //  Double lat = (Double) iter.next();
-                // Double lon = (Double) iter.next();
 
-               /* for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
-                    Double lat = postSnapshot.getValue(Double.class);
-                    Log.e("Get Data", post.<YourMethod>());
-                }*/
-
-                //Log.d("THIS IS CLUSTER:", );
                 GenericTypeIndicator<ArrayList<Double>> child = new GenericTypeIndicator<ArrayList<Double>>() {};
                 ArrayList<Double> center = dataSnapshot.getValue(child);
 
                 Double lat = (Double) center.get(0);
                 Double lon = (Double)center.get(1);
 
-
-               // Double size = (Double)center.get(2);
-
-
-                //dataSnapshot.child("0").getValue();
-               // GenericTypeIndicator<Double> child = new GenericTypeIndicator<Double>() {};
-                //GenericTypeIndicator<Integer> child2 = new GenericTypeIndicator<Integer>() {};
-               // Double lat = (Double) dataSnapshot.child("array").child("0").getValue(Double.class);
-                //Double lon = (Double)dataSnapshot.child("array").child("1").getValue(Double.class);
-                //int size = (Integer)dataSnapshot.child("array").child("2").getValue(Integer.class);
-
-              /*  ArrayList arr = (ArrayList) dataSnapshot.getValue(ArrayList.class);
-
-                Double lat = (Double) arr.get(0);
-                Double lon = (Double)arr.get(1);*/
                 LatLng cluster = new LatLng(lat, lon);
-                avoid.add(cluster);
+                avoid.add(cluster); //add clusters to our "avoid" array
                 Log.d("THIS IS CLUSTER:", "LAT is " + lat + "LON IS "+ lon);
+                //create the cluster representation
                 Circle circle = map.addCircle(new CircleOptions()
                         .center(new LatLng(lat, lon))
                         .radius(20)
                         .strokeColor(android.R.color.black)
                         .fillColor(Color.argb(125,255,0,0)));
-               // sendDirectionRequest();
             }
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String prevChildKey) {
-               /* String loc = dataSnapshot.getKey();
-                String welcome = dataSnapshot.getValue(LocationObject.class).getWelcome();
-                //String welcome = dataSnapshot.
-                Log.d("THIS IS WHAT WELCOME IS", "Welcome is " + welcome);
-                Toast toast= Toast.makeText(MapsActivity.this, welcome, Toast.LENGTH_LONG);
-                toast.setGravity(Gravity.CENTER, 0, 0);
-                View view = toast.getView();
-                view.setBackgroundColor(Color.BLUE);
-                LinearLayout toastLayout = (LinearLayout) toast.getView();
-                TextView welcomeText = (TextView) toastLayout.getChildAt(0);
-                welcomeText.setTextSize(30);
-                toast.show();*/
-                //sendDirectionRequest();
             }
 
             @Override
@@ -379,28 +288,110 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             public void onCancelled(DatabaseError databaseError) {}
         });
 
-       /* myRef.addValueEventListener(new ValueEventListener() {
+
+    }
+
+
+    //change group location on map when the creator's location changes
+    public void updateGroupLoc(){
+
+        if(groupLoc!=null) {
+            groupLoc.remove();
+        }
+        groupLoc = map.addCircle(new CircleOptions()
+                .center(new LatLng(newLoc.getLat(), newLoc.getLon()))
+                .radius(10)
+                .strokeColor(android.R.color.black)
+                .fillColor(Color.argb(255,127,255,0)));
+
+    }
+
+    //in order to show route, check what events the user is a part of
+    public void checkMembership(final GoogleMap mapReady){
+        //check what events user is a member of
+        Query query = FirebaseDatabase.getInstance().getReference().child("events");
+
+        query.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                // This method is called once with the initial value and again
-                // whenever data at this location is updated.
-                String value = dataSnapshot.getValue(String.class);
-                Log.d("NEW VAL ", "Value is: " + value);
+                String status;
+                for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) { //loop through events
+                    ArrayList<String> temp = (ArrayList<String>) childDataSnapshot.child("members").getValue();
+                    if(temp.contains(user.getUid())){   //check if the event contains the user
+                        status = (String)childDataSnapshot.child("status").getValue();//if contains user, check for status
+                        if(status.equals("ONGOING")==true){ //if status is ongoing, show on map
+                            Log.d(" IT IS ONGOING ", " IT IS ONGOING ");
+                            origin = new LatLng((Double)childDataSnapshot.child("startLoc").child("lat").getValue(),(Double)childDataSnapshot.child("startLoc").child("lon").getValue() );
+                            dest = new LatLng((Double)childDataSnapshot.child("endLoc").child("lat").getValue(),(Double)childDataSnapshot.child("endLoc").child("lon").getValue() );
+                            markerPoints.add(origin);
+                            markerPoints.add(dest);
+                            mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
+
+                            groupLoc = map.addCircle(new CircleOptions()
+                                    .center(new LatLng((Double)childDataSnapshot.child("groupLoc").child("lat").getValue(), (Double)childDataSnapshot.child("groupLoc").child("lon").getValue()))
+                                    .radius(10)
+                                    .strokeColor(android.R.color.black)
+                                    .fillColor(Color.argb(255,127,255,0)));
+
+
+                            pointLat = dest.latitude;
+                            pointLon = dest.longitude;
+                            sendDirectionRequest(); //request route
+                            break;
+                        }
+                    }
+                }
+
+            }
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+    //when creator's location changed and event is ONGOING
+    public void groupLocChanged(final Location location){
+
+        database.getReference("events").orderByChild("creator").equalTo(user.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
+
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+
+                if(dataSnapshot.exists()) {
+
+                    newLoc = new LocationObject(location.getLatitude(), location.getLongitude());   //get the new group's location
+                    for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
+                        //  groupID = (String)childDataSnapshot.getKey();
+                        childDataSnapshot.child("groupLoc").getRef().setValue(newLoc);
+                        if(((String)childDataSnapshot.child("status").getValue()).equals("ONGOING")==true){ //if event is ongoing, change group location
+                            ArrayList<String> temp = (ArrayList<String>) childDataSnapshot.child("members").getValue();
+                            if(temp.contains(user.getUid())){
+                                updateGroupLoc();
+                            }
+                        }
+
+                    }
+
+                }
             }
 
             @Override
-            public void onCancelled(DatabaseError error) {
-                // Failed to read value
-                Log.w("NEW VAL", "Failed to read value.", error.toException());
-            }
+            public void onCancelled(DatabaseError databaseError) {}
         });
-*/
+    }
+
+
+    //when the user's location change
+    public void onLocationChanged(final Location location, final GoogleMap mapReady) {
+        // New location has now been determined
+
         if(marker!=null){
             marker.remove();
         }
         map = mapReady;
         map.getUiSettings().setZoomControlsEnabled(true);
-        final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+
 
         if(markerPoints.size()<1) {
             currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
@@ -409,238 +400,64 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
             marker = mapReady.addMarker(new MarkerOptions().position(currentLatLng)
                     .title("Marker in current Location"));
 
-
-            //COMMENTED GO BACK
-           /* markerPoints.add(currentLatLng);
-            dest = new LatLng(38.900715, -77.047048);
-            markerPoints.add(dest);
-            mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
-
-            pointLat = dest.latitude;
-            pointLon = dest.longitude;*/
-
-
-            /*
-            NEED TO CHECK IF EVENT IS ONGOING!!!!!!!
-            First check what group the user is in
-             */
-
-            Log.d(" user id ", " user id ");
-            Log.d(" user id ", user.getUid());
-
-            //check what events user is a member of
-            Query query = FirebaseDatabase.getInstance().getReference().child("events");
-
-            query.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(DataSnapshot dataSnapshot) {
-                    String status;
-                    for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
-                        Log.d(" before contains user ", " before contains user ");
-                        ArrayList<String> temp = (ArrayList<String>) childDataSnapshot.child("members").getValue();
-                        if(temp.contains(user.getUid())){
-                            Log.d(" contains user ", " contains user ");
-
-
-
-
-                            status = (String)childDataSnapshot.child("status").getValue();
-
-                            Log.d(" STATUS IS ", status);
-
-                            if(status.equals("ONGOING")==true){
-                                Log.d(" IT IS ONGOING ", " IT IS ONGOING ");
-                                origin = new LatLng((Double)childDataSnapshot.child("startLoc").child("lat").getValue(),(Double)childDataSnapshot.child("startLoc").child("lon").getValue() );
-                                dest = new LatLng((Double)childDataSnapshot.child("endLoc").child("lat").getValue(),(Double)childDataSnapshot.child("endLoc").child("lon").getValue() );
-                                markerPoints.add(origin);
-                                markerPoints.add(dest);
-                                mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
-
-                                pointLat = dest.latitude;
-                                pointLon = dest.longitude;
-
-
-                                sendDirectionRequest();
-                                break;
-                            }
-                        }
-                    }
-
-
-                    /*for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
-
-                        //(String)childDataSnapshot.child("status").getValue();
-                        if(status == "ONGOING"){
-                            sendDirectionRequest();
-                            break;
-                        }
-
-
-                    }*/
-
-                }
-
-                @Override
-                public void onCancelled(DatabaseError databaseError) {
-
-                }
-            });
-
-
-           //GO BACK
-           // sendDirectionRequest();
         }
+        groupLocChanged(location);  //go to check if the user is an event's reator
 
-        //FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        //Query creators = database.getReference("events").orderByChild("creator");
-        //Log.d(" creators", creators.;
-
-
-
-        //database.getReference("events").orderByChild("creator").equalTo(user.getUid())//.on("value", function(snapshot) {
-
-
-
-       database.getReference("events").orderByChild("creator").equalTo(user.getUid()).addValueEventListener(new ValueEventListener() {
-
-       // ValueEventListener eventListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-              //  Log.d(" creators", (String) dataSnapshot.getValue());
-                Log.d(" hello here ", " hello here ");
-                if(!dataSnapshot.exists()) {
-                    //create new user
-                    Log.d(" hello doesnt exists ", " hello doesnt exists ");
-                }
-                else{
-                    Log.d(" hello exists ", " hello exists ");
-                    LocationObject newLoc = new LocationObject(location.getLatitude(), location.getLongitude());
-
-                    //dataSnapshot.getRef().child("groupLoc").setValue(newLoc);
-                    //dataSnapshot.child("groupLoc").getRef().setValue(newLoc);
-                    for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
-                        //  groupID = (String)childDataSnapshot.getKey();
-                        childDataSnapshot.child("groupLoc").getRef().setValue(newLoc);
-                    }
-
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {}
-           });
-        //userNameRef.addListenerForSingleValueEvent(eventListener);
-
-        int alpha = 127; // 50% transparent
-        int value = 0;
-        //Color myColour = new Color(255, value, value, alpha);
-      /*  Circle circle = map.addCircle(new CircleOptions()
-                .center(new LatLng(-33.87365, 151.20689))
-                .radius(10000)
-                .strokeColor(android.R.color.black)
-                .fillColor(Color.argb(125,255,0,0)));*/
-
-       /* Polygon polygon = map.addPolygon(new PolygonOptions()
-                .add(new LatLng(38.899584, -77.048130), new LatLng(38.899584, -77.046697), new LatLng(38.898816, -77.046681), new LatLng(38.898346, -77.047299))
-                .strokeColor(android.R.color.black)
-                .fillColor(Color.argb(125,255,0,0)));*/
-
-        // You can now create a LatLng Object for use with maps
-        //double lat = location.getLatitude();
-        //  double
-        //LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+        if (checkedOnce == false) {
+            showClusters();
+            checkMembership(mapReady);
+            checkedOnce = true;
+        }
     }
-    private void sendDirectionRequest(){
-        //double pointLat = dest.latitude;
-        //double pointLon = dest.longitude;
-        Log.d(" size of marker points ", String.valueOf(markerPoints.size()));
-        Log.d(" first marker ", String.valueOf(markerPoints.get(0)));
-        Log.d(" second marker ", String.valueOf(markerPoints.get(1)));
-        if (markerPoints.size() >= 2) {
-            //LatLng origin = (LatLng) markerPoints.get(0);
 
-            //origin =
+    //send directions request to google maps api
+    private void sendDirectionRequest(){
+
+        if (markerPoints.size() >= 2) { //check if we already have a start and end locations
 
             LatLng dest = (LatLng) markerPoints.get(1);
-            Log.d("origin is ", String.valueOf(origin));
-            Log.d("dest is ", String.valueOf(dest));
-            // requestDirection(origin, dest);
 
-
-            // Getting URL to the Google Directions API
-            //  while(lineOptionsSize==0) {
-
-            LatLng waypoint = new LatLng(pointLat,pointLon);
+            LatLng waypoint = new LatLng(pointLat,pointLon);    //initialize the waypoint
             String url = getDirectionsUrl(origin, dest, waypoint);
 
             DownloadTask downloadTask = new DownloadTask();
+            downloadTask.execute(url);// Start downloading json data from Google Directions API
 
-            // Start downloading json data from Google Directions API
-            downloadTask.execute(url);
-         //   pointLat += .001065;
-           // pointLon -=-0.0014;
-
-            //  }
         }
     }
 
+    //set up the url to request
     private String getDirectionsUrl(LatLng origin,LatLng dest, LatLng waypoint){
 
-
-        // Origin of route
-        String str_origin = "origin="+origin.latitude+","+origin.longitude;
-
-        // Destination of route
-        String str_dest = "destination="+dest.latitude+","+dest.longitude;
-
-        //waypoints
-        String str_waypoints = "waypoints="+waypoint.latitude+","+waypoint.longitude;
-
-        // Sensor enabled
-        String sensor = "sensor=false";
-
-        // Building the parameters to the web service
-        String parameters = str_origin+"&"+str_dest+"&"+sensor+"&"+str_waypoints;
-
-        // Output format
-        String output = "json";
-
-        // Building the url to the web service
-        String url = "https://maps.googleapis.com/maps/api/directions/"+output+"?"+parameters+"&alternatives=true&mode=walking";//"&waypoints=optimize:true|38.901315, -77.043397|38.901315, -77.041740";
-
+        String str_origin = "origin="+origin.latitude+","+origin.longitude;// Origin of route
+        String str_dest = "destination="+dest.latitude+","+dest.longitude;// Destination of route
+        String str_waypoints = "waypoints="+waypoint.latitude+","+waypoint.longitude;//waypoints
+        String sensor = "sensor=false";// Sensor enabled
+        String parameters = str_origin+"&"+str_dest+"&"+sensor+"&"+str_waypoints; // Building the parameters for the web service
+        String output = "json";// Output format
+        String url = "https://maps.googleapis.com/maps/api/directions/"+output+"?"+parameters+"&alternatives=true&mode=walking";// Building the url for the web service
         return url;
     }
 
 
 
-    /** A method to download json data from url */
+    // Download json data from url
     private String downloadUrl(String strUrl) throws IOException {
         String data = "";
         InputStream iStream = null;
         HttpURLConnection urlConnection = null;
         try{
             URL url = new URL(strUrl);
-
-            // Creating an http connection to communicate with url
-            urlConnection = (HttpURLConnection) url.openConnection();
-
-            // Connecting to url
-            urlConnection.connect();
-
-            // Reading data from url
-            iStream = urlConnection.getInputStream();
-
+            urlConnection = (HttpURLConnection) url.openConnection();// Creating an http connection to communicate with url
+            urlConnection.connect();// Connecting to url
+            iStream = urlConnection.getInputStream();// Reading data from url
             BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
-
             StringBuffer sb = new StringBuffer();
-
             String line = "";
             while( ( line = br.readLine()) != null){
                 sb.append(line);
             }
-
             data = sb.toString();
-
             br.close();
 
         }catch(Exception e){
@@ -652,19 +469,14 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         return data;
     }
 
-    // Fetches data from url passed
-    private class DownloadTask extends AsyncTask<String, Void, String> {
 
+    private class DownloadTask extends AsyncTask<String, Void, String> {// Fetches data from url passed
         // Downloading data in non-ui thread
         @Override
         protected String doInBackground(String... url) {
-
-            // For storing data from web service
-            String data = "";
-
+            String data = "";// For storing data from web service
             try{
-                // Fetching the data from web service
-                data = downloadUrl(url[0]);
+                data = downloadUrl(url[0]);// Fetching the data from web service
             }catch(Exception e){
                 Log.d("Background Task",e.toString());
             }
@@ -672,35 +484,26 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         }
 
         // Executes in UI thread, after the execution of
-        // doInBackground()
         @Override
         protected void onPostExecute(String result) {
-            Log.d(" THE RESULT ", result);
             super.onPostExecute(result);
-
             ParserTask parserTask = new ParserTask();
-
-            // Invokes the thread for parsing the JSON data
-            parserTask.execute(result);
+            parserTask.execute(result);// Invokes the thread for parsing the JSON data
         }
     }
 
-    /** A class to parse the Google Places in JSON format */
+    //Parse the Google Places in JSON format
     private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String,String>>> >{
 
         // Parsing the data in non-ui thread
         @Override
         protected List<List<HashMap<String, String>>> doInBackground(String... jsonData) {
-
             JSONObject jObject;
             List<List<HashMap<String, String>>> routes = null;
-
             try{
                 jObject = new JSONObject(jsonData[0]);
                 DirectionsJSONParser parser = new DirectionsJSONParser();
-
-                // Starts parsing data
-                routes = parser.parse(jObject);
+                routes = parser.parse(jObject);// Starts parsing data
             }catch(Exception e){
                 e.printStackTrace();
             }
@@ -711,81 +514,48 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         @Override
         protected void onPostExecute(List<List<HashMap<String, String>>> result) {
             ArrayList<LatLng> points = null;
-            Log.d("HERE ", "IN ON POST EXECUTE");
             if(polyline != null) {
                 polyline.remove();
             }
-            PolylineOptions lineOptions = null;
-         //   PolylineOptions route = new PolylineOptions(); //final route
+            PolylineOptions lineOptions = new PolylineOptions();; //initialize polyline for route
             MarkerOptions markerOptions = new MarkerOptions();
 
-           // lineOptions.
+            boolean isLocationOnPath = true;    //initializea variable to check if cluster on path
 
+            for(int i=0;i<result.size();i++){ //iterate through the routes returned
 
-            ////WANT THE LAT TO BE .001065 above
-            lineOptions = new PolylineOptions();
-
-            Log.d("Result size: ", String.valueOf(result.size()));
-
-            boolean isLocationOnPath = true;
-
-            for(int i=0;i<result.size();i++){
                 points = new ArrayList<LatLng>();
-                //lineOptions = new PolylineOptions();
-
-                // Fetching i-th route
-                List<HashMap<String, String>> path = result.get(i);
-                Log.d("Path size: ", String.valueOf(path.size()));
+                List<HashMap<String, String>> path = result.get(i);// Fetching i-th route
 
                 // Fetching all the points in i-th route
                 for(int j=0;j<path.size();j++){
                     HashMap<String,String> point = path.get(j);
-//                    Log.d("points size: ", String.valueOf(point.size()));
-
                     double lat = Double.parseDouble(point.get("lat"));
                     double lng = Double.parseDouble(point.get("lng"));
                     LatLng position = new LatLng(lat, lng);
-                    if (twoTimes(points, position)) {
-                        Log.d(" in four times ", " four times");
-                        points.subList(points.indexOf(position) + 1, points.size()).clear();
+                    if (twoTimes(points, position)) {   //check if it repeats a point more than twice
+                        points.subList(points.indexOf(position) + 1, points.size()).clear();//if so, delete the next point
                     }
-
-                    // Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
-                    //points.remove(position);
-                    //}
                     else {
                         points.add(position);
 
                     }
-                  //  points.add(position);
-                    //GO BACK HERE!!!
-                    //if(points.contains(position)){
-                    //  Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
 
                 }
 
-
-                Log.d(" new points size ", String.valueOf(points.size()));
-                // Adding all the points in the route to LineOptions
-
-                //lineOptions.addAll(points);
-                double tolerance = 10; // meters
+                double tolerance = 10; // tolerance in meters for cluster detection
                 isLocationOnPath=false;
-                for (LatLng cluster : avoid){
-                    Log.d(" first cluster ", "lat: "+String.valueOf(cluster.latitude) +", lon: "+String.valueOf(cluster.longitude));
-                    isLocationOnPath = PolyUtil.isLocationOnPath(cluster, points, true, tolerance);
-                    if(isLocationOnPath==true){
-                        Log.d(" loc on path is true ", " true");
+                for (LatLng cluster : avoid){   //iterate through all clusters
+                    //Log.d(" first cluster ", "lat: "+String.valueOf(cluster.latitude) +", lon: "+String.valueOf(cluster.longitude));
+                    isLocationOnPath = PolyUtil.isLocationOnPath(cluster, points, true, tolerance); //check if cluster is on path
+                    if(isLocationOnPath==true){//if cluster on path, don't use that path
                         points.clear();
                         break;
                     }
                 }
-                //  boolean isLocationOnPath = PolyUtil.isLocationOnPath(avoid, points, true, tolerance);
 
                 if(isLocationOnPath == false) {
-                    Log.d(" not in path ", "not in path");
-                    // route = lineOptions;
-                    lineOptions.addAll(points);
+                    lineOptions.addAll(points);//if cluster not on path, add all path points
                     lineOptions.width(8);
                     lineOptions.color(Color.BLACK);
                     polyline = map.addPolyline(lineOptions);
@@ -793,40 +563,22 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
                 }
                 points.clear();
-
             }
+            //once we looped through all returned paths-> continute to generate waypoints
             if(isLocationOnPath == true) {
-
-
-                // Traversing through all the routes
-                for (int i = 0; i < result.size(); i++) {
+                for (int i = 0; i < result.size(); i++) { // Traversing through all the routes
 
                     points = new ArrayList<LatLng>();
-                    //lineOptions = new PolylineOptions();
-
-                    // Fetching i-th route
-                    List<HashMap<String, String>> path = result.get(i);
-                    Log.d("Path size: ", String.valueOf(path.size()));
-
-                    // Fetching all the points in i-th route
-                    for (int j = 0; j < path.size(); j++) {
+                    List<HashMap<String, String>> path = result.get(i);// Fetching i-th route
+                    for (int j = 0; j < path.size(); j++) {// Fetching all the points in i-th route
                         HashMap<String, String> point = path.get(j);
-//                    Log.d("points size: ", String.valueOf(point.size()));
-
                         double lat = Double.parseDouble(point.get("lat"));
                         double lng = Double.parseDouble(point.get("lng"));
                         LatLng position = new LatLng(lat, lng);
-                        //GO BACK HERE!!!
-                        //if(points.contains(position)){
-                        //  Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
+
                         if (twoTimes(points, position)) {
-                            Log.d(" in four times ", " four times");
                             points.subList(points.indexOf(position) + 1, points.size()).clear();
                         }
-
-                        // Log.d(" already contains: ", "lat: "+String.valueOf(lat) +", lon: "+String.valueOf(lng));
-                        //points.remove(position);
-                        //}
                         else {
                             points.add(position);
 
@@ -834,20 +586,14 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
                     }
 
-
-                    Log.d(" new points size ", String.valueOf(points.size()));
-                    // Adding all the points in the route to LineOptions
-                    //lineOptions.addAll(points);
-                    double tolerance = 3; // meters
+                    double tolerance = 10; // cluster tolerance in meters
                      isLocationOnPath = false;
                     for (LatLng cluster : avoid) {
-                        Log.d(" first cluster ", "lat: " + String.valueOf(cluster.latitude) + ", lon: " + String.valueOf(cluster.longitude));
                         isLocationOnPath = PolyUtil.isLocationOnPath(cluster, points, true, tolerance);
                         if (isLocationOnPath == true) {
                             break;
                         }
                     }
-                    //  boolean isLocationOnPath = PolyUtil.isLocationOnPath(avoid, points, true, tolerance);
 
                     if (isLocationOnPath == false) {
                         Log.d(" not in path ", "not in path");
@@ -860,23 +606,11 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     points.clear();
 
                 }
-
-
-                // Drawing polyline in the Google Map for the i-th route
-                //lineOptionsSize=lineOptions.getPoints().size();
-                Log.d(" line options size ", String.valueOf(lineOptions.getPoints().size()));
                 polyline = map.addPolyline(lineOptions);
-                if (lineOptions.getPoints().size() == 0) {
-                    // if()
-                    Log.d(" in line options ", "went in line options");
-
-                   // pointLat += .001065;
+                if (lineOptions.getPoints().size() == 0) {  //if no points were added (cluster on path) start generating waypoints
                     counter++;
                     if(counter < 10){
                     pointLat += .000565;
-                    // pointLat += .001070;
-
-                    //pointLon -= -0.0014;
                     pointLon -= -0.00054;
                     }
 
@@ -886,25 +620,19 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                         pointLat -= .000565;
                         pointLon += -0.00054;
                     }
-                    else{
+                    else {
                         pointLat -= .000565;
                         pointLon += -0.00054;
                     }
-
-
-                    //pointLon -=-0.002;
-                    //pointLat += .001079;
-                    //pointLon -=-0.0029;
-                    sendDirectionRequest();
+                    sendDirectionRequest(); //send request with new waypoints
                 }
             }
         }
     }
-
+    //check that path doesn't go through the same point twice
     public static boolean twoTimes(ArrayList<LatLng> list, LatLng position)
     {
         int numCount = 0;
-
         for (LatLng thisPosition : list) {
             if (thisPosition.equals(position)) numCount++;
         }

@@ -17,16 +17,9 @@ public class Location {
         return lat;
     }
 
-    /*public void setLatitude(double latitude) {
-        lat = latitude;
-    }*/
-
     public double getLon() {
         return lon;
     }
 
-   /* public void setLongitude(double longitude) {
-        lon = longitude;
-    }*/
 
 }

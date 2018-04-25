@@ -9,9 +9,8 @@ import java.util.ArrayList;
 
 public class Group {
     public String name, time, description, startName, endName;
-    //public LatLng startLoc, endLoc;
-    public LocationObject startLoc;// = new LatLng(0.0,0.0);
-    public LocationObject endLoc;// = new LatLng(0.0,0.0);
+    public LocationObject startLoc;
+    public LocationObject endLoc;
     public ArrayList<String> members = new ArrayList<String>();
     public String creator;
     public static String welcome;
@@ -26,9 +25,6 @@ public class Group {
     public Group(String name, LocationObject startLoc, LocationObject endLoc, String startName, String endName, String description, String creator, LocationObject creatorLoc, ArrayList<String> members, String status, String time, long hour, long minutes) {
         this.name = name;
         this.time = time;
-       // this.startLoc = new LatLng(startLoc.latitude,startLoc.longitude);
-
-        //this.endLoc = new LatLng(endLoc.latitude,endLoc.longitude);
         this.startLoc = startLoc;
         this.endLoc = endLoc;
         this.startName=startName;
@@ -45,10 +41,6 @@ public class Group {
     public String getName() {
         return name;
     }
-
-    /*public void setLatitude(double latitude) {
-        lat = latitude;
-    }*/
 
     public String getTime() {
         return time;
@@ -79,10 +71,5 @@ public class Group {
     public void addMembers(String user){
         this.members.add(user);
     }
-
-
-   /* public void setLongitude(double longitude) {
-        lon = longitude;
-    }*/
 
 }

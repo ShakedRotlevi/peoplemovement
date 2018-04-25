@@ -105,7 +105,6 @@ public class CreateGroupActivity extends AppCompatActivity{
         autocompleteFragmentStart.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
             public void onPlaceSelected(Place place) {
-                // TODO: Get info about the selected place.
                 Log.i(" The Place: ", "Place: " + place.getName());
                 startLoc= new LocationObject(place.getLatLng().latitude,place.getLatLng().longitude);
                 startName = (String)place.getName();
@@ -114,18 +113,13 @@ public class CreateGroupActivity extends AppCompatActivity{
 
             @Override
             public void onError(Status status) {
-                // TODO: Handle the error.
                 Log.i(" The Place: ", "An error occurred: " + status);
             }
         });
         autocompleteFragmentEnd.setOnPlaceSelectedListener(new PlaceSelectionListener() {
             @Override
             public void onPlaceSelected(Place place) {
-                // TODO: Get info about the selected place.
-
                 Log.i(" The Place: ", "Place: " + place.getName());
-
-
                 endLoc= new LocationObject(place.getLatLng().latitude,place.getLatLng().longitude);
 
                 endName = (String)place.getName();
@@ -133,7 +127,6 @@ public class CreateGroupActivity extends AppCompatActivity{
 
             @Override
             public void onError(Status status) {
-                // TODO: Handle the error.
                 Log.i(" The Place: ", "An error occurred: " + status);
             }
         });
@@ -144,7 +137,6 @@ public class CreateGroupActivity extends AppCompatActivity{
 
             @Override
             public void onClick(View v) {
-                // TODO Auto-generated method stub
                 Calendar mcurrentTime = Calendar.getInstance();
                 int hour = mcurrentTime.get(Calendar.HOUR_OF_DAY);
                 int minute = mcurrentTime.get(Calendar.MINUTE);
@@ -174,30 +166,6 @@ public class CreateGroupActivity extends AppCompatActivity{
         final EditText timeField = (EditText) findViewById(R.id.editView2);
         String time = timeField.getText().toString();
 
-       // final EditText startField = (EditText) findViewById(R.id.editView3);
-        //String start = startField.getText().toString();
-
-
-
-  /*  <EditText
-        android:id="@+id/editView3"
-        android:layout_height="wrap_content"
-        android:inputType="textPersonName"
-        android:layout_width="0dp"
-        app:layout_constraintTop_toBottomOf="@+id/editView2"
-        app:layout_constraintLeft_toRightOf="@+id/textView2"
-        app:layout_constraintRight_toRightOf="parent"
-                >
-    </EditText>*/
-       // String start = "start";
-
-
-        //final EditText endField = (EditText) findViewById(R.id.editView4);
-        //String end = endField.getText().toString();
-
-       // String end = "end";
-
-
         final EditText descriptionField = (EditText) findViewById(R.id.editView5);
         String description = descriptionField.getText().toString();
 
@@ -208,15 +176,9 @@ public class CreateGroupActivity extends AppCompatActivity{
         ArrayList<String> members= new ArrayList<String>();
         members.add(user);
         LocationObject tempLoc = new LocationObject(-33.87365, 151.20689);
-        //time!!!!!
         Group group= new Group(name, startLoc, endLoc, startName, endName, description, user, tempLoc, members, "INCOMPLETE", time, pickedHour,pickedMin);
-        //List<group> events = new ArrayList<>();
-        //events.add(name);
+
         DatabaseReference refEvents = database.getReference("events");
-        // this new, empty ref only exists locally
-        //DatabaseReference newChildRef = refEvents.push();
-       // newChildRef.setValue({name:'name'});
         refEvents.push().setValue(group);
-        Log.d(" PUSHED EVENT", " PUSHED EVENT");
     }
 }

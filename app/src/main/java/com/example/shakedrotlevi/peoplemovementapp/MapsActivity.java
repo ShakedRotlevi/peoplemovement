@@ -103,17 +103,14 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
     private GoogleMap map;
     Marker marker = null;
     ArrayList markerPoints= new ArrayList();
-    LatLng currentLatLng;
-    LatLng dest;
-    LatLng origin;
+    LatLng currentLatLng, dest, origin;
     int lineOptionsSize = 0;
     double pointLat, pointLon;
 
-    Circle groupLoc;
+    Circle clusterCircle;
+    Marker groupLoc;
     ArrayList<LatLng> avoid = new ArrayList<LatLng>();
-
     LocationObject newLoc;
-
     Boolean checkedOnce = false;
 
     int counter=0;
@@ -122,13 +119,9 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
     Map<String, LocationObject> locations = new HashMap<>(); // for storing locations for clusters
 
-   // PolylineOptions lineOptions = new PolylineOptions();
-
-
     final FirebaseDatabase database = FirebaseDatabase.getInstance();
     DatabaseReference clusterArray = database.getReference("clusters");
     final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-
 
     private long UPDATE_INTERVAL = 10 * 1000;  /* 10 secs */
     private long FASTEST_INTERVAL = 2000; /* 2 sec */
@@ -143,7 +136,6 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         mapFragment.getMapAsync(this);
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation); //set navigation menu
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
-        //  startLocationUpdates();
     }
 
     //initialize the bottom navigation menu
@@ -175,9 +167,8 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         startLocationUpdates( mapReady);
         //generateLocations(38.899934,-77.046641,1); //generate clusters
 
-
-        generateLocations(38.898313, -77.049227,0);//smith center on G
-        generateLocations(38.899605, -77.049646,28);//seh on h
+        generateLocations(38.898313, -77.049227,0, 28);//smith center on G
+      //  generateLocations(38.899605, -77.049646,28, 50);//seh on h
 
     }
 
@@ -226,17 +217,15 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
 
     //generate clusters
-    public void generateLocations(double lat, double lon, int k){
+    public void generateLocations(double lat, double lon, int k, int size){
 
         LocationObject location1;
         //double lat=lat;, lon;
-        int clusterSize = k+27;
+        int clusterSize = k+size;
 
         /* distance for creating clusters
         difference: .000365 in x lon
         difference: .000023 in y lat*/
-
-
 
         for(int i=k;i<clusterSize;i++){
             lat = lat + 0.00000023;
@@ -248,6 +237,25 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         DatabaseReference refMap = database.getReference("locations map");
         refMap.setValue(locations);
 
+    }
+    //when the user's location change
+    public void onLocationChanged(final Location location, final GoogleMap mapReady) {
+        // New location has now been determined
+
+        if(marker!=null){
+            marker.remove();
+        }
+        map = mapReady;
+        map.getUiSettings().setZoomControlsEnabled(true);
+
+        currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+        groupLocChanged(location);  //go to check if the user is an event's reator
+
+        if (checkedOnce == false) {
+            showClusters();
+            checkMembership(mapReady);
+            checkedOnce = true;
+        }
     }
 
     //show clusters on the map
@@ -261,20 +269,45 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
                 Double lat = (Double) center.get(0);
                 Double lon = (Double)center.get(1);
-
+                Double size = (Double)center.get(2);
                 LatLng cluster = new LatLng(lat, lon);
                 avoid.add(cluster); //add clusters to our "avoid" array
-                Log.d("THIS IS CLUSTER:", "LAT is " + lat + "LON IS "+ lon);
-                //create the cluster representation
-                Circle circle = map.addCircle(new CircleOptions()
+                //create the cluster representation, ratio for radius is .74
+                clusterCircle = map.addCircle(new CircleOptions()
                         .center(new LatLng(lat, lon))
-                        .radius(20)
+                        .radius(size*.74)
                         .strokeColor(android.R.color.black)
                         .fillColor(Color.argb(125,255,0,0)));
             }
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String prevChildKey) {
+
+                if(clusterCircle!=null){
+                    clusterCircle.remove();
+                }
+                GenericTypeIndicator<ArrayList<Double>> child = new GenericTypeIndicator<ArrayList<Double>>() {};
+                ArrayList<Double> center = dataSnapshot.getValue(child);
+
+                Double lat = (Double) center.get(0);
+                Double lon = (Double)center.get(1);
+                Double size = (Double)center.get(2);
+
+                LatLng cluster = new LatLng(lat, lon);
+
+
+
+                avoid.add(cluster); //add clusters to our "avoid" array
+                //create the cluster representation
+                clusterCircle = map.addCircle(new CircleOptions()
+                        .center(new LatLng(lat, lon))
+                        .radius(size*.74)
+                        .strokeColor(android.R.color.black)
+                        .fillColor(Color.argb(125,255,0,0)));
+
+
+                sendDirectionRequest();
+
             }
 
             @Override
@@ -290,22 +323,6 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
 
 
     }
-
-
-    //change group location on map when the creator's location changes
-    public void updateGroupLoc(){
-
-        if(groupLoc!=null) {
-            groupLoc.remove();
-        }
-        groupLoc = map.addCircle(new CircleOptions()
-                .center(new LatLng(newLoc.getLat(), newLoc.getLon()))
-                .radius(10)
-                .strokeColor(android.R.color.black)
-                .fillColor(Color.argb(255,127,255,0)));
-
-    }
-
     //in order to show route, check what events the user is a part of
     public void checkMembership(final GoogleMap mapReady){
         //check what events user is a member of
@@ -320,19 +337,14 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     if(temp.contains(user.getUid())){   //check if the event contains the user
                         status = (String)childDataSnapshot.child("status").getValue();//if contains user, check for status
                         if(status.equals("ONGOING")==true){ //if status is ongoing, show on map
-                            Log.d(" IT IS ONGOING ", " IT IS ONGOING ");
                             origin = new LatLng((Double)childDataSnapshot.child("startLoc").child("lat").getValue(),(Double)childDataSnapshot.child("startLoc").child("lon").getValue() );
                             dest = new LatLng((Double)childDataSnapshot.child("endLoc").child("lat").getValue(),(Double)childDataSnapshot.child("endLoc").child("lon").getValue() );
                             markerPoints.add(origin);
                             markerPoints.add(dest);
                             mapReady.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
-
-                            groupLoc = map.addCircle(new CircleOptions()
-                                    .center(new LatLng((Double)childDataSnapshot.child("groupLoc").child("lat").getValue(), (Double)childDataSnapshot.child("groupLoc").child("lon").getValue()))
-                                    .radius(10)
-                                    .strokeColor(android.R.color.black)
-                                    .fillColor(Color.argb(255,127,255,0)));
-
+                            groupLoc = map.addMarker(new MarkerOptions()
+                                    .position(new LatLng((Double)childDataSnapshot.child("groupLoc").child("lat").getValue(), (Double)childDataSnapshot.child("groupLoc").child("lon").getValue()))
+                                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
                             pointLat = dest.latitude;
                             pointLon = dest.longitude;
@@ -350,19 +362,15 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         });
     }
 
+
     //when creator's location changed and event is ONGOING
     public void groupLocChanged(final Location location){
-
         database.getReference("events").orderByChild("creator").equalTo(user.getUid()).addListenerForSingleValueEvent(new ValueEventListener() {
-
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-
                 if(dataSnapshot.exists()) {
-
                     newLoc = new LocationObject(location.getLatitude(), location.getLongitude());   //get the new group's location
                     for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
-                        //  groupID = (String)childDataSnapshot.getKey();
                         childDataSnapshot.child("groupLoc").getRef().setValue(newLoc);
                         if(((String)childDataSnapshot.child("status").getValue()).equals("ONGOING")==true){ //if event is ongoing, change group location
                             ArrayList<String> temp = (ArrayList<String>) childDataSnapshot.child("members").getValue();
@@ -381,34 +389,19 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         });
     }
 
+    //change group location on map when the creator's location changes
+    public void updateGroupLoc(){
 
-    //when the user's location change
-    public void onLocationChanged(final Location location, final GoogleMap mapReady) {
-        // New location has now been determined
-
-        if(marker!=null){
-            marker.remove();
+        if(groupLoc!=null) {
+            groupLoc.remove();
         }
-        map = mapReady;
-        map.getUiSettings().setZoomControlsEnabled(true);
 
+        groupLoc = map.addMarker(new MarkerOptions()
+                .position(new LatLng(newLoc.getLat(), newLoc.getLon()))
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-        if(markerPoints.size()<1) {
-            currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
-
-
-            marker = mapReady.addMarker(new MarkerOptions().position(currentLatLng)
-                    .title("Marker in current Location"));
-
-        }
-        groupLocChanged(location);  //go to check if the user is an event's reator
-
-        if (checkedOnce == false) {
-            showClusters();
-            checkMembership(mapReady);
-            checkedOnce = true;
-        }
     }
+
 
     //send directions request to google maps api
     private void sendDirectionRequest(){
@@ -511,6 +504,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
         }
 
         // Executes in UI thread, after the parsing process
+        //Rerouting takes place here
         @Override
         protected void onPostExecute(List<List<HashMap<String, String>>> result) {
             ArrayList<LatLng> points = null;
@@ -518,8 +512,6 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 polyline.remove();
             }
             PolylineOptions lineOptions = new PolylineOptions();; //initialize polyline for route
-            MarkerOptions markerOptions = new MarkerOptions();
-
             boolean isLocationOnPath = true;    //initializea variable to check if cluster on path
 
             for(int i=0;i<result.size();i++){ //iterate through the routes returned
@@ -527,8 +519,7 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                 points = new ArrayList<LatLng>();
                 List<HashMap<String, String>> path = result.get(i);// Fetching i-th route
 
-                // Fetching all the points in i-th route
-                for(int j=0;j<path.size();j++){
+                for(int j=0;j<path.size();j++){ // Fetching all the points in i-th route
                     HashMap<String,String> point = path.get(j);
                     double lat = Double.parseDouble(point.get("lat"));
                     double lng = Double.parseDouble(point.get("lng"));
@@ -562,8 +553,34 @@ public class MapsActivity extends Activity implements OnMapReadyCallback {
                     break;
 
                 }
-                points.clear();
+                //else{
+                    points.clear();
+                  /*  polyline = map.addPolyline(lineOptions);
+                    if (lineOptions.getPoints().size() == 0) {  //if no points were added (cluster on path) start generating waypoints
+                        counter++;
+                        if(counter < 10){
+                            pointLat += .000565;
+                            pointLon -= -0.00054;
+                        }
+
+                        else if(counter == 10){
+                            pointLat -= 0.01695;
+                            pointLon += 0.0162;
+                            pointLat -= .000565;
+                            pointLon += -0.00054;
+                        }
+                        else {
+                            pointLat -= .000565;
+                            pointLon += -0.00054;
+                        }
+                        sendDirectionRequest(); //send request with new waypoints
+                    }
+                }*/
+
             }
+
+
+
             //once we looped through all returned paths-> continute to generate waypoints
             if(isLocationOnPath == true) {
                 for (int i = 0; i < result.size(); i++) { // Traversing through all the routes

@@ -37,7 +37,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                     mTextMessage.setText(R.string.title_home);
                     return true;
                 case R.id.navigation_map:
-                    Log.d("myTag", "Clicked Map");
                     startActivity(new Intent(MainActivity.this, MapsActivity.class));
                     return true;
                 case R.id.navigation_notifications:
@@ -72,13 +71,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.O
                 mp.setLooping(true);
             }
         });
-
-      /*  GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(this)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .addApi(LocationServices.API)
-                    .build();*/
-      //  Firebase.setAndroidContext(this);
 
     }
 

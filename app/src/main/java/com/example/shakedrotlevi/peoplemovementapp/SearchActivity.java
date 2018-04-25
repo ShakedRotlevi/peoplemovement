@@ -54,10 +54,6 @@ public class SearchActivity extends AppCompatActivity {
     // Define an ArrayAdapter for the list
     private ArrayAdapter<String> arrayAdapter;
 
-    /**
-     * onCreate method
-     */
-
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -87,32 +83,25 @@ public class SearchActivity extends AppCompatActivity {
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
 
-        // Associate the Teacher Firebase Database Reference with the database's teacher object
+
         databaseEvents = FirebaseDatabase.getInstance().getReference("events");
-        //databaseEvents = databaseEvents.child("events");
 
-        // Associate the teachers' list with the corresponding ListView
-        listViewEvents = (ListView) findViewById(R.id.list_events);
 
-        // Set the ArrayAdapter to the ListView
-        arrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, eventsList);
+        listViewEvents = (ListView) findViewById(R.id.list_events);// Associate events list with ListView
+
+        arrayAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, eventsList);// Set the ArrayAdapter to the ListView
         listViewEvents.setAdapter(arrayAdapter);
 
 
-        // Attach a ChildEventListener to the teacher database, so we can retrieve the teacher entries
+        // retrieve events
         databaseEvents.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
 
-                // Get the value from the DataSnapshot and add it to the teachers' list
-                Log.d(" THis is the VALUE ", " THE VALUE IS ");
-              //  Log.d(" HERE " , dataSnapshot.getValue().toString());
                 dataSnapshot.child("members");
                 Group event = dataSnapshot.getValue(Group.class);
                 String eventName = event.getName();
                 eventsList.add(eventName);
-
-                // Notify the ArrayAdapter that there was a change
                 arrayAdapter.notifyDataSetChanged();
             }
 
@@ -139,12 +128,6 @@ public class SearchActivity extends AppCompatActivity {
         listViewEvents.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-
-                //Here´s the problem! The super.OnItemClick
-                //doesn´t work.//
-
-                //Here´s the problem! The super. doesn´t work.//
-
                 String event = eventsList.get(position);
 
                 Intent intent = new Intent(SearchActivity.this, GroupActivity.class);

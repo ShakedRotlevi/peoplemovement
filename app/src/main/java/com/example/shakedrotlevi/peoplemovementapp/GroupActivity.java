@@ -53,7 +53,6 @@ public class GroupActivity extends AppCompatActivity {
                     startActivity(new Intent(GroupActivity.this, MainActivity.class));
                     return true;
                 case R.id.navigation_map:
-                    Log.d("myTag", "Clicked Map");
                     startActivity(new Intent(GroupActivity.this, MapsActivity.class));
                     return true;
                 case R.id.navigation_notifications:
@@ -87,8 +86,6 @@ public class GroupActivity extends AppCompatActivity {
                 eventsID = (String)dataSnapshot.getKey();
                 for (DataSnapshot childDataSnapshot : dataSnapshot.getChildren()) {
                     groupID = (String)childDataSnapshot.getKey();
-                    Log.d(" THIS IS THE NAME: ", (String)childDataSnapshot.child("name").getValue());
-                    Log.d(" THIS IS GROUP ID: ", groupID);
                     name.setText((String)childDataSnapshot.child("name").getValue());
                     startName.setText((String)childDataSnapshot.child("startName").getValue());
                     endName.setText((String)childDataSnapshot.child("endName").getValue());
@@ -97,19 +94,13 @@ public class GroupActivity extends AppCompatActivity {
 
                     double startLat = (Double)childDataSnapshot.child("startLoc").child("lat").getValue();
                     double startLon = (Double)childDataSnapshot.child("startLoc").child("lon").getValue();
-                    //LocationObject startLocLatLng = (LocationObject)childDataSnapshot.child("startLoc").getValue();
 
                     LocationObject startLoc = new LocationObject(startLat,startLon);
 
                     double endLat = (Double)childDataSnapshot.child("endLoc").child("lat").getValue();
                     double endLon = (Double)childDataSnapshot.child("endLoc").child("lon").getValue();
 
-                  //  LocationObject endLocLatLng = (LocationObject)childDataSnapshot.child("endLoc").getValue();
-
                     LocationObject endLoc = new LocationObject(endLat, endLon);
-
-                   // LatLng endLoc = (LatLng)childDataSnapshot.child("endLoc").getValue();
-
                     String status = (String)childDataSnapshot.child("status").getValue();
                     String time = (String)childDataSnapshot.child("time").getValue();
                     long hour = (long) childDataSnapshot.child("hour").getValue();
@@ -139,14 +130,8 @@ public class GroupActivity extends AppCompatActivity {
                     // User is signed in
                     if(users.contains(user) == false) {
                         users.add(user);
-                        // Map<String, ArrayList<String>> members = new HashMap<String, ArrayList<String>>();
-                        Log.d(" The members ", " The Members ");
-                        Log.d(" The members ", " users ");
-                        //  members.put("members", users);
-                        // groupEvent.addMembers(user);
                         FirebaseDatabase.getInstance().getReference().child(eventsID).child(groupID).child("members").setValue(users);
-                        //setValue(members);
-                        // Firebase taskRef = objRef.child(taskId);
+
                     }
 
 
